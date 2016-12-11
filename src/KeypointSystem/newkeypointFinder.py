@@ -100,7 +100,7 @@ def main(imgName, gaussW=1):
 		finCnts.append( (cX, cY) )
 
 
-	print len(contours)
+	print "len(contours): " + str(len(contours))
 	for i in range(len(contours)):
 		cv2.drawContours(img2, contours, i, (0,0,255), 1)
 		cv2.circle(img2, finCnts[i], 3, (255, 0, 0), -1)

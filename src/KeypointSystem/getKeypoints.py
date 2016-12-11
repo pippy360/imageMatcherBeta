@@ -112,7 +112,7 @@ def fromPointsToFramenets_justTriangles(points, DEBUG_IMAGE=None, DEBUG_KEYPOINT
 
 	#print "len of points"
 	#print len(points)
-	lower=200
+	lower=150
 	upper=300
 
 	triangles = []
@@ -159,7 +159,7 @@ def fromPointsToFramenets_justTriangles(points, DEBUG_IMAGE=None, DEBUG_KEYPOINT
 
 def getTheKeypoints_justPoints_inner(img):
 	gaussW = 21
-	img2 = img.copy()
+	#img2 = img.copy()
 	img = recolour(img, gaussW)
 
 	b, g, r = cv2.split(img)
@@ -168,17 +168,18 @@ def getTheKeypoints_justPoints_inner(img):
 	#cv2.imshow('b',b)
 	#cv2.waitKey()
 	points1 = []
-	points1.extend(getTheKeypoints_justPoints_inner_inner(b, img2))
+	points1.extend(getTheKeypoints_justPoints_inner_inner(b))
 #	points1.extend(getTheKeypoints_justPoints_inner_inner(g, img2))
 #	points1.extend(getTheKeypoints_justPoints_inner_inner(r, img2))
 	return points1
 
 
 
-def getTheKeypoints_justPoints_inner_inner(channel, img2):
+def getTheKeypoints_justPoints_inner_inner(channel):
 	img = channel
 	ret,img = cv2.threshold(img,127,255,cv2.THRESH_BINARY)
-	img2 = img.copy()
+	
+	#img2 = img.copy()
 #	cv2.imshow('here..'+str(img.shape), img2)
 #	cv2.waitKey()
 	contours, hierarchy = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
@@ -200,9 +201,9 @@ def getTheKeypoints_justPoints_inner_inner(channel, img2):
 		finCnts.append( (cX, cY) )
 
 
-	for i in range(len(contours)):
-		cv2.drawContours(img2, contours, i, (0,0,255), 1)
-		cv2.circle(img2, finCnts[i], 3, (255, 0, 0), -1)
+	#for i in range(len(contours)):
+	#	cv2.drawContours(img2, contours, i, (0,0,255), 1)
+	#	cv2.circle(img2, finCnts[i], 3, (255, 0, 0), -1)
 
 	#print "len(contours):" + str(len(contours))
 	for i in range(len(contours)):
@@ -222,7 +223,7 @@ def getTheKeypoints_justPoints_inner_inner(channel, img2):
 		#print ycoords[0]
 
 		for i in range(len(xcoords[0])):
-			cv2.circle(img2, ( int(xcoords[0][i]), int(ycoords[0][i]) ), 3, (255, 0, 0), -1)
+			#cv2.circle(img2, ( int(xcoords[0][i]), int(ycoords[0][i]) ), 3, (255, 0, 0), -1)
 			xs = xcoords[0][i]
 			ys = ycoords[0][i]
 			finCnts.append( (xs, ys) )

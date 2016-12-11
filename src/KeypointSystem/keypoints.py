@@ -3,7 +3,6 @@ import matplotlib
 #matplotlib.use('Agg')
 import time
 
-import matplotlib.pyplot as plt
 import math
 from math import pi
 from scipy.interpolate import UnivariateSpline, interp1d
@@ -19,7 +18,7 @@ import sys
 from scipy import signal
 from scipy.signal import argrelextrema
 import new_shapes as ns
-import plotting
+#import plotting
 ####### gen points ########
 
 g_name = 'REPLACE_ME'

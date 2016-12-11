@@ -21,15 +21,17 @@ def getTheTriangles(keyPoints, DEBUG_IMAGE=None, DEBUG_KEYPOINTS=None):
 	return gk.getTheTriangles(keyPoints, DEBUG_IMAGE=DEBUG_IMAGE, DEBUG_KEYPOINTS=DEBUG_KEYPOINTS)
 
 
-def buildNonNormalisedFragments(imgName, img, trianglesList):
+def buildNonNormalisedFragmentsForSingleTriangle(imgName, img, triangle):
 	import fragProcessing as fs
+	fragmentCoords, fragmentImage = fs.cutOutTheFrag(triangle, img)
+
+	nonNormFrag = FragmentImageData(fragmentImage, fragmentCoords)
+	return NormalisedFragment(imgName, triangle, None, nonNormFrag, None)
+
+
+def buildNonNormalisedFragments(imgName, img, trianglesList):
 	for triangle in trianglesList:
-		#start = time.time()
-		fragmentCoords, fragmentImage = fs.cutOutTheFrag(triangle, img)
-		#end = time.time()
-		##print "cut out the frag: " + str(end - start)
-		nonNormFrag = FragmentImageData(fragmentImage, fragmentCoords)
-		yield NormalisedFragment(imgName, triangle, None, nonNormFrag, None)
+		yield buildNonNormalisedFragmentsForSingleTriangle(imgName, img, triangle)
 
 
 def _weNeedToAdd180(rot, shape):
@@ -216,8 +218,8 @@ def normaliseFragmentScaleAndRotationAndHash(fragmentObj, hashProvider):
 		imageName 			= fragmentObj.imageName
 		fragmentImageCoords = fragmentObj.fragmentImageCoords
 		fragmentHash 		= hashProvider.getHashPlain(miniFrag.fragmentImage)
-		croppedFragment 	= fragmentObj.croppedFragment
-		normalisedFragment	= miniFrag
+		croppedFragment 	= None#fragmentObj.croppedFragment
+		normalisedFragment	= None#miniFrag
 		t = NormalisedFragment(imageName, fragmentImageCoords, fragmentHash, croppedFragment, normalisedFragment)
 		ret.append(t)
 
@@ -237,16 +239,59 @@ def getHashForSingleFragment(fragmentImageData):
 	##print "getHash: " + str(end - start)
 	return hash
 
-	
+def buildFragmentObjectsWithRange(imgName, imageData, triangles, queue, start=0, end=None):
+	if end == None:
+		end = len(triangles)
+
+	#print 'going now...start: ' + str(start) + ' end: ' + str(end)
+	for i in xrange(start, end):
+		triangle = triangles[i]
+		incompleteNonNormalisedFragment = buildNonNormalisedFragmentsForSingleTriangle(imgName, imageData, triangle)
+		import hashProvider
+		completeFragentObj = normaliseFragmentScaleAndRotationAndHash(incompleteNonNormalisedFragment, hashProvider)
+		queue.put(completeFragentObj)
+
+
+
 def buildFragmentObjects(imgName, imageData, triangles):
 	#turn the triangles into fragments of the image
 	nonNormalisedFragments = buildNonNormalisedFragments(imgName, imageData, triangles)
 
 	#normalise the scale and fragments
 	import hashProvider
-	framgentObjsList = finishBuildingFragments(nonNormalisedFragments, hashProvider)
+	fragentObjsList = finishBuildingFragments(nonNormalisedFragments, hashProvider)
 
-	return framgentObjsList
+	return fragentObjsList
+
+def buildFragmentObjectsWithRangeThreaded(imageName, imageData, triangles):
+	from Queue import Queue
+	from threading import Thread
+	num_of_threads = 8
+	numTris = len(triangles)
+	#print numTris
+	q = Queue()
+
+	threadList = []
+	jump = int(numTris/num_of_threads)
+	for i in range(num_of_threads):
+		start = i*jump
+		end = start+jump
+		t = Thread(target=buildFragmentObjectsWithRange, args=(imageName, imageData, triangles, q, start, end))
+		threadList.append(t)
+		t.start()
+	print "created " + str(num_of_threads) + " threads..."
+	for t in threadList:
+		t.join()
+	print '...finished thread work'
+	#do the rest
+	start = jump*num_of_threads
+	print "dealing with the rest: " + str(len(triangles)-start)
+	buildFragmentObjectsWithRange(imageName, imageData, triangles, q, start)
+	ret = []
+	while not q.empty():
+		ret.append(q.get())
+
+	return ret 
 
 ##################################################
 #	public Fragment[] getAllTheHashesForImage
@@ -262,8 +307,8 @@ def getAllTheHashesForImage(shapeAndPositionInvariantImage):
 	#turn the keyPoints into triangles	
 	triangles = getTheTriangles(keyPoints)
 
-	framgentObjsList = buildFragmentObjects(shapeAndPositionInvariantImage.imageName, imageData, triangles)
-	return framgentObjsList, len(triangles)
+	fragentObjsList = buildFragmentObjectsWithRangeThreaded(shapeAndPositionInvariantImage.imageName, imageData, triangles)
+	return fragentObjsList, len(triangles)
 
 def buildImageFragmentsMapByHash(shapeAndPositionInvariantImage):
 	frags, size = getAllTheHashesForImage(shapeAndPositionInvariantImage)

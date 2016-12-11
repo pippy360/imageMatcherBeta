@@ -27,8 +27,8 @@ def buildImage(fullImagePath):
 def processImage(imageObj):
 
 	if isDebug:
-    		if not os.path.exists('../output_debug/'+imageObj.imageName+'/'):
-    		    os.makedirs('../output_debug/'+imageObj.imageName+'/')
+		if not os.path.exists('../output_debug/'+imageObj.imageName+'/'):
+			os.makedirs('../output_debug/'+imageObj.imageName+'/')
 
 	return nm.getAllTheHashesForImage(imageObj)
 
@@ -37,8 +37,7 @@ def addImageToDB(fullImagePath):
 	values, numberOfFragments = processImage(imageObj)
 	r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-	print "about to add this amount of fragments to the DB"
-	print numberOfFragments 
+	#print numberOfFragments 
 	count = 0
 	for fragment in values:    
 		inputImageFragmentHash = fragment.fragmentHash
@@ -51,9 +50,9 @@ def addImageToDB(fullImagePath):
 
 		r.lpush(inputImageFragmentHash, jh.getTheJsonString(imageObj.imageName, inputImageFragmentHash, 10, inputImageFragmentShape) )
 		count += 1
-		print "finished fragment: " + str(count) + "/" + str(numberOfFragments) + ' - ' + str(inputImageFragmentHash)
+		#print "finished fragment: " + str(count) + "/" + str(numberOfFragments) + ' - ' + str(inputImageFragmentHash)
 
-	print "added: "+ str(count)
+	print "added: "+ str(count) +" fragments to DB"
 
 
 def handleMatchedFragment(inputImage, matchedJsonObj, matchedImg, inputImageFragmentShape):
@@ -61,15 +60,15 @@ def handleMatchedFragment(inputImage, matchedJsonObj, matchedImg, inputImageFrag
 	print "matched"
 	matchedCoords = matchedJsonObj['coords']
 
-	col = (randint(0,255),randint(0,255),randint(0,255))
+	#col = (randint(0,255),randint(0,255),randint(0,255))
 
-	d.drawLinesColourAlsoWidth(matchedCoords, matchedImg, col, 1)
-	cv2.imshow('found', matchedImg)
+	#d.drawLinesColourAlsoWidth(matchedCoords, matchedImg, col, 1)
+	#cv2.imshow('found', matchedImg)
 	
-	d.drawLinesColourAlsoWidth(inputImageFragmentShape, inputImage, col, 1)
-	cv2.imshow('input', inputImage)
+	#d.drawLinesColourAlsoWidth(inputImageFragmentShape, inputImage, col, 1)
+	#cv2.imshow('input', inputImage)
 
-	cv2.waitKey(0)
+	#cv2.waitKey(0)
 
 
 def handleMatchedFragments(inputImage, matchedJsonObjs, matchedImg, inputImageFragmentShape):
@@ -248,7 +247,7 @@ name8 = "rick4"
 #showMatches(name2, name1)
 #showMatches(name5)
 #showMatches(name4)
-addImageToDB(toFullPath('rick1'))
+addImageToDB(toFullPath('img1'))
 
 
 #from KeypointSystem import newGetKeypoints as gk
@@ -257,7 +256,7 @@ addImageToDB(toFullPath('rick1'))
 #img = cv2.imread("../input/"+name4+".jpg")
 #gk.getTheKeyPoints(img)
 #cv2.waitKey()
-showMatches(toFullPath('rick2'))
+showMatches(toFullPath('img2'))
 #showMatches(toFullPath(name4))
 
 #showMatches("lennaWithGreenDotsInTriangle2", "lennaWithGreenDotsInTriangle3")

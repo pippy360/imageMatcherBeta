@@ -4,7 +4,7 @@ from Keypoint import Keypoint
 
 class TwoImageKeypointSupplier:
     def __init__(self, originalImage, transformedImage, transformationObj):
-        self.originalImage = originalImage.copy()
+        self.originalImage = originalImage#originalImage.copy()
         self.originalImageKeypoints = getTheKeypoints(originalImage)
         self.transformedImage = transformedImage.copy()
         self.transformedImageKeypoints =  getTheKeypoints(transformedImage)
