@@ -36,7 +36,7 @@ def halfsize(img):
 
 def visualTest2():
     from TransformationObjects import Transformation
-    imgName = "../input/small_lenna1.jpg"
+    imgName = "../input/shape.jpg"
     inputImage = cv2.imread(imgName)
     inputImage_copy = cv2.imread(imgName)
     inputImage = halfsize(inputImage)
