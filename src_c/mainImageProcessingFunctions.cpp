@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "opencv.hpp"
+#include <opencv2/opencv.hpp>
 #include <stdio.h>
 
 #include "FragmentHash.h"
