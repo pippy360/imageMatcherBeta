@@ -310,6 +310,21 @@ def getAllTheHashesForImage(shapeAndPositionInvariantImage):
 	fragentObjsList = buildFragmentObjectsWithRangeThreaded(shapeAndPositionInvariantImage.imageName, imageData, triangles)
 	return fragentObjsList, len(triangles)
 
+def dumpTheInfoForTheCplusplus(shapeAndPositionInvariantImage):
+	imageData = shapeAndPositionInvariantImage.imageData	
+	#get the keyPoints
+	keyPoints = getTheKeyPoints(imageData)
+
+	#turn the keyPoints into triangles	
+	triangles = getTheTriangles(keyPoints)
+	print "####starting####"
+	print shapeAndPositionInvariantImage.imageFullPathOrName
+	for tri in triangles:
+		for pt in tri:
+			print int(pt[0])
+			print int(pt[1])
+
+
 def buildImageFragmentsMapByHash(shapeAndPositionInvariantImage):
 	frags, size = getAllTheHashesForImage(shapeAndPositionInvariantImage)
 	ret = {}
