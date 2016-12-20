@@ -7,7 +7,7 @@
 #include "ShapeAndPositionInvariantImage.h"
 #include "Triangle.h"
 
-#define NUM_OF_ROTATIONS 1
+#define NUM_OF_ROTATIONS 3
 #define TARGET_TRIANGLE_SCALE 200 //the fragments are scaled by this value 
 #define HASH_SIZE 8
 
@@ -100,10 +100,11 @@ const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrix(const std::ve
 //@shift: this is used to get every rotation of the triangle we need (3, one for each edge)
 const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrixWithShift(const std::vector<Keypoint> shape, const std::vector<Keypoint>& targetTriangle, unsigned int shift = 0)
 {
-	auto t = prepShapeForCalcOfTransformationMatrix(shape, targetTriangle);
-	shift %= t.size();
+	auto shape_cpy = shape;
+	shift %= shape_cpy.size();
+	std::rotate(shape_cpy.begin(),shape_cpy.begin()+shift,shape_cpy.end());
 	//printf("this is the shift: %d\n", shift);
-	std::rotate(t.begin(),t.begin()+shift,t.end());
+	auto t = prepShapeForCalcOfTransformationMatrix(shape_cpy, targetTriangle);
 	return t;
 }
 
@@ -140,10 +141,10 @@ void drawLines(Mat input_img, vector<Keypoint> shape){
 	cv::line(input_img, Point2f(shape[1].x, shape[1].y), Point2f(shape[2].x, shape[2].y), scl);
 }
 
-Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle)
+Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle, int shift)
 {
-	auto newShape = prepShapeForCalcOfTransformationMatrix(inputTriangle, targetTriangle);
-	return calcTransformationMatrix(newShape, targetTriangle, inputTriangle[0]);
+	auto newShape = prepShapeForCalcOfTransformationMatrixWithShift(inputTriangle, targetTriangle, shift);
+	return calcTransformationMatrix(newShape, targetTriangle, inputTriangle[shift]);
 }
 
 std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFrag(ShapeAndPositionInvariantImage& fragment)
@@ -152,10 +153,10 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 	auto ret = std::vector<ShapeAndPositionInvariantImage>();
 	for (int i = 0; i < NUM_OF_ROTATIONS; i++)
 	{	
-		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle());
+		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle(), i);
 		auto input_img = fragment.getImageData();
 		//DEBUG
-		//drawLines(input_img, shape);
+		drawLines(input_img, shape);
 		//DEBUG
 		auto newImageData = applyTransformationMatrixToImage(input_img, transformationMatrix);
 		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, getTargetTriangle(), fragment.getImageFullPath());
@@ -249,7 +250,6 @@ std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage
 	auto ret = std::vector<FragmentHash>();//size==triangles.size()*NUM_OF_ROTATIONS
 	for (auto tri : triangles)
 	{
-		auto tri = triangles[i];
 		auto hashes = getHashesForTriangle(inputImage, tri);
 		for (auto hash: hashes)
 		{
