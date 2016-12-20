@@ -286,6 +286,29 @@ void testHashConversion()
     std::cout << str << std::endl;
 }
 
+cv::Matx33d getATransformationMatrix(){
+
+    std::ifstream file("output.txt");
+    std::string filename = readTheName(&file);
+    auto tris = readTheTriangles(&file);
+    auto tri = tris[0];
+    
+    return cv::calcTransformationMatrixWithShapePreperation(tri.toKeypoints(), getTargetTriangle(200, 200), 0);
+}
+
+void testHashingForResize()
+{
+    cv::Mat img = cv::imread("./small_lenna1.jpg");
+
+    auto outputImage = cv::Mat(200, 200, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformationMatrix = getATransformationMatrix();
+    auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
+    //cv::warpAffine(img, outputImage, transformationMatrix, outputImage.size());
+
+    cv::imshow("d", outputImage);
+    cv::waitKey();
+}
+
 int main(int argc, char* argv[])
 {
 	toTheLeftOfTest();
@@ -295,42 +318,43 @@ int main(int argc, char* argv[])
     dHashSlowTest();
     testHashConversion();
     //speedTest();
+    testHashingForResize();
 
-    std::ifstream file("output.txt");
-    std::string filename = readTheName(&file);
-    auto tris = readTheTriangles(&file);
+    // std::ifstream file("output.txt");
+    // std::string filename = readTheName(&file);
+    // auto tris = readTheTriangles(&file);
 
-	for (int i = 0; i < 10; i++)
-	{
-		//printf("new tri\n");
-		auto tri = tris[i];
-		auto k = tri.toKeypoints();
-		//printf("keypoint size: %d\n", k.size());
-		for (auto s : k)
-		{
-			//printf("(%.2lf, %.2lf)\n", s.x, s.y);
-		}
-	}
+	// for (int i = 0; i < 10; i++)
+	// {
+	// 	//printf("new tri\n");
+	// 	auto tri = tris[i];
+	// 	auto k = tri.toKeypoints();
+	// 	//printf("keypoint size: %d\n", k.size());
+	// 	for (auto s : k)
+	// 	{
+	// 		//printf("(%.2lf, %.2lf)\n", s.x, s.y);
+	// 	}
+	// }
 
-    cv::Mat img = cv::imread("../input/rick1.jpg");
-    std::vector<Keypoint> g;
-	auto temp = ShapeAndPositionInvariantImage("small_lenna3", img, g, "");
-	auto k = cv::getAllTheHashesForImage(temp, tris);
+    // cv::Mat img = cv::imread("../input/rick1.jpg");
+    // std::vector<Keypoint> g;
+	// auto temp = ShapeAndPositionInvariantImage("small_lenna3", img, g, "");
+	// auto k = cv::getAllTheHashesForImage(temp, tris);
 
-    printf("size: %d\n", k.size());
-	for(auto o: k){
-        std::cout << cv::convertHashToString(o) << std::endl;
-    }
+    // printf("size: %d\n", k.size());
+	// for(auto o: k){
+    //     std::cout << cv::convertHashToString(o) << std::endl;
+    // }
 
-    for(auto tri: tris)
-    {
-		/*
-        printf("[(%.0lf, %.0lf), ", tri.keypoints_[0].x, tri.keypoints_[0].y);
-        printf("(%.0lf, %.0lf), ", tri.keypoints_[1].x, tri.keypoints_[1].y);
-        printf("(%.0lf, %.0lf)]\n", tri.keypoints_[2].x, tri.keypoints_[2].y);
-		 */
-    }
-    printf("done\n");
+    // for(auto tri: tris)
+    // {
+	// 	/*
+    //     printf("[(%.0lf, %.0lf), ", tri.keypoints_[0].x, tri.keypoints_[0].y);
+    //     printf("(%.0lf, %.0lf), ", tri.keypoints_[1].x, tri.keypoints_[1].y);
+    //     printf("(%.0lf, %.0lf)]\n", tri.keypoints_[2].x, tri.keypoints_[2].y);
+	// 	 */
+    // }
+    // printf("done\n");
     /*
 	cv::Mat img = cv::imread("../../small_lenna3.jpg");
 	auto shape = getShapeFromImage(img);

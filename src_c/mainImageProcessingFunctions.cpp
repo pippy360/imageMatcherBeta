@@ -15,13 +15,13 @@
 #define FRAGMENT_WIDTH TARGET_TRIANGLE_SCALE*HASH_SIZE
 #define FRAGMENT_HEIGHT TARGET_TRIANGLE_SCALE*(HASH_SIZE+1)
 
-const std::vector<Keypoint> getTargetTriangle()
+const std::vector<Keypoint> getTargetTriangle(int scalex=FRAGMENT_WIDTH, int scaley=FRAGMENT_HEIGHT)
 {
     std::vector<Keypoint> v;
 	//multiply all points by TARGET_TRIANGLE_SCALE
     v.push_back(Keypoint(0,0));
-    v.push_back(Keypoint(.5*FRAGMENT_WIDTH,1*FRAGMENT_HEIGHT));//sqrt(0.7) == 0.83666003
-    v.push_back(Keypoint(1*FRAGMENT_WIDTH,0));
+    v.push_back(Keypoint(.5*scalex,1*scaley));//sqrt(0.7) == 0.83666003
+    v.push_back(Keypoint(1*scalex,0));
     return v;
 }
 
@@ -46,9 +46,9 @@ Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, con
 							  pt2.y, pt3.y, 0.0,
 							  0.0, 0.0, 1.0 );
 
-	cv::Matx33d transpose_m(    1.0, 0.0, -inputTriangle[0].x,
-								0.0, 1.0, -inputTriangle[0].y,
-								0.0, 0.0, 1.0 );
+	cv::Matx33d transpose_m(  1.0, 0.0, -inputTriangle[0].x,
+							  0.0, 1.0, -inputTriangle[0].y,
+							  0.0, 0.0, 1.0 );
 
 	return  targetPoints * inputPoints.inv() * transpose_m;
 }
