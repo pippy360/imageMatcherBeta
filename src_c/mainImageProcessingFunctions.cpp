@@ -10,16 +10,18 @@
 #include "Triangle.h"
 
 #define NUM_OF_ROTATIONS 3
-#define TARGET_TRIANGLE_SCALE 200 //the fragments are scaled by this value 
 #define HASH_SIZE 8
+#define TARGET_TRIANGLE_SCALE 1 //the fragments are scaled by this value 
+#define FRAGMENT_WIDTH TARGET_TRIANGLE_SCALE*HASH_SIZE
+#define FRAGMENT_HEIGHT TARGET_TRIANGLE_SCALE*(HASH_SIZE+1)
 
 const std::vector<Keypoint> getTargetTriangle()
 {
     std::vector<Keypoint> v;
 	//multiply all points by TARGET_TRIANGLE_SCALE
     v.push_back(Keypoint(0,0));
-    v.push_back(Keypoint(.5*TARGET_TRIANGLE_SCALE,0.83666003*TARGET_TRIANGLE_SCALE));//sqrt(0.7) == 0.83666003
-    v.push_back(Keypoint(1*TARGET_TRIANGLE_SCALE,0));
+    v.push_back(Keypoint(.5*FRAGMENT_WIDTH,1*FRAGMENT_HEIGHT));//sqrt(0.7) == 0.83666003
+    v.push_back(Keypoint(1*FRAGMENT_WIDTH,0));
     return v;
 }
 
@@ -100,8 +102,8 @@ Mat applyTransformationMatrixToImage(Mat inputImage, const Matx33d transformatio
 {
 	Mat m = formatTransformationMat(transformation_matrix);
 	
-	//Mat outputImage(8, 8, CV_8UC3, Scalar(0,0,0));
-	Mat outputImage(200*.83, 200, CV_8UC3, Scalar(0,0,0));
+	Mat outputImage(FRAGMENT_HEIGHT, FRAGMENT_WIDTH, CV_8UC3, Scalar(0,0,0));
+	//Mat outputImage(200*.83, 200, CV_8UC3, Scalar(0,0,0));
 	warpAffine(inputImage, outputImage, m, outputImage.size());
 	//DEBUG
 	imshow("fragmentAfterTransformation", outputImage);
@@ -224,8 +226,11 @@ std::vector<FragmentHash> getHashesForTriangle(ShapeAndPositionInvariantImage& i
 std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage inputImage, std::vector<Triangle> triangles)
 {
 	auto ret = std::vector<FragmentHash>();//size==triangles.size()*NUM_OF_ROTATIONS
-	for (auto tri : triangles)
+	// for (auto tri : triangles)
+	// {
+	for (int i = 0; i < 3; i++)
 	{
+		auto tri = triangles[i];
 		auto hashes = getHashesForTriangle(inputImage, tri);
 		for (auto hash: hashes)
 		{
@@ -244,7 +249,6 @@ std::string convertHashToString(FragmentHash inHash)
 	{
 		if (hash[i]){
 			h += pow(2, (i % 8));
-			printf("h: %d i: %d \n", h, i);
 		}
 
 		if (i%8 == 7){

@@ -317,15 +317,14 @@ int main(int argc, char* argv[])
 	auto temp = ShapeAndPositionInvariantImage("small_lenna3", img, g, "");
 	auto k = cv::getAllTheHashesForImage(temp, tris);
 
-	//for(auto o: k){
-        //std::string str = (o.getHash()[0])? "true": "false";
-        //printf("hash: %s \n", str.c_str());
-    //}
+    printf("size: %d\n", k.size());
+	for(auto o: k){
+        std::cout << cv::convertHashToString(o) << std::endl;
+    }
 
     for(auto tri: tris)
     {
 		/*
-		 *
         printf("[(%.0lf, %.0lf), ", tri.keypoints_[0].x, tri.keypoints_[0].y);
         printf("(%.0lf, %.0lf), ", tri.keypoints_[1].x, tri.keypoints_[1].y);
         printf("(%.0lf, %.0lf)]\n", tri.keypoints_[2].x, tri.keypoints_[2].y);
