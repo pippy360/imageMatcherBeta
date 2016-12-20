@@ -97,7 +97,7 @@ void calcTransformationMatrixTest(){
     v.push_back(k1);
     v.push_back(k2);
     v.push_back(k3);
-    auto m = cv::calcTransformationMatrix(v, getTargetTriangle(), k1);
+    auto m = cv::calcTransformationMatrix(v, getTargetTriangle());
     //std::cout << "M = "<< std::endl << " "  << m << std::endl << std::endl;
 }
 
@@ -111,7 +111,7 @@ void normaliseScaleAndRotationForSingleFragTest(cv::Mat &img){
     v.push_back(k1);
     v.push_back(k2);
     v.push_back(k3);
-    auto m = cv::calcTransformationMatrix(v, getTargetTriangle(), k1);
+    auto m = cv::calcTransformationMatrix(v, getTargetTriangle());
     //std::cout << "working so far M = "<< std::endl << " "  << m << std::endl << std::endl;    
     auto im = ShapeAndPositionInvariantImage("d", img, v, "something");
     cv::normaliseScaleAndRotationForSingleFrag(im);
@@ -269,6 +269,23 @@ const std::vector<Triangle> readTheTriangles(std::ifstream *file)
 }
 
 
+void testHashConversion()
+{
+    std::vector<bool> hash;
+    hash.push_back(false);
+    hash.push_back(true);
+    hash.push_back(false);
+    hash.push_back(false);
+
+    hash.push_back(false);
+    hash.push_back(false);
+    hash.push_back(false);
+    hash.push_back(false);
+
+    std::string str = cv::convertHashToString(FragmentHash(hash));
+    std::cout << str << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
 	toTheLeftOfTest();
@@ -276,6 +293,7 @@ int main(int argc, char* argv[])
     shiftTest();
     calcTransformationMatrixTest();
     dHashSlowTest();
+    testHashConversion();
     //speedTest();
 
     std::ifstream file("output.txt");
@@ -294,7 +312,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-    cv::Mat img = cv::imread("./small_lenna1.jpg");
+    cv::Mat img = cv::imread("../input/rick1.jpg");
     std::vector<Keypoint> g;
 	auto temp = ShapeAndPositionInvariantImage("small_lenna3", img, g, "");
 	auto k = cv::getAllTheHashesForImage(temp, tris);

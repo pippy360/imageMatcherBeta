@@ -2,6 +2,8 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <stdio.h>
+#include <iomanip>      // std::setw
+#include <math.h>       /* pow */
 
 #include "FragmentHash.h"
 #include "ShapeAndPositionInvariantImage.h"
@@ -14,7 +16,7 @@
 const std::vector<Keypoint> getTargetTriangle()
 {
     std::vector<Keypoint> v;
-	//* all points by TARGET_TRIANGLE_SCALE
+	//multiply all points by TARGET_TRIANGLE_SCALE
     v.push_back(Keypoint(0,0));
     v.push_back(Keypoint(.5*TARGET_TRIANGLE_SCALE,0.83666003*TARGET_TRIANGLE_SCALE));//sqrt(0.7) == 0.83666003
     v.push_back(Keypoint(1*TARGET_TRIANGLE_SCALE,0));
@@ -25,48 +27,26 @@ namespace cv
 {
 
 
-Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle, Keypoint transpose_pt)
+Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle)
 {
 	/*
 	 * ######CODE BY ROSCA#######
-	import numpy as np
-	#T       A         B
-	#[a b]   [pt1.x pt2.x]   [0.5 1]
-	#[c d] x [pt1.y pt2.y] = [sin(.7) 0]
-
-	#T*A = B
-	#T*A*A^-1 = B*A^-1
-	#TI = B*A^-1
-
-	#TODO: fix scaling!
-	areaOfTargetTriangle = 0.418330015
-	#scale = np.sqrt( (area/areaOfTargetTriangle) )
-	scale = 200
-	scaleMat = np.matrix(((scale, 0), (0, scale)))
-
-	A = np.matrix(np.concatenate((pt1, pt2), axis=1))
-	B = np.matrix(((0.5, 1), (0.83666003, 0)))#np.sqrt(0.7) == 0.83666003
-	B = scaleMat * B
-	T = B * A.getI()
-
-	return T
-	 */	
+	 */
 	Keypoint target_pt1 = targetTriangle[1];
 	Keypoint target_pt2 = targetTriangle[2];
-	Keypoint input_pt1 = inputTriangle[1];
-	Keypoint input_pt2 = inputTriangle[2];
-
 	cv::Matx33d targetPoints(  target_pt1.x, target_pt2.x, 0.0,
 							   target_pt1.y, target_pt2.y, 0.0,
 							   0.0, 0.0, 1.0 );
 
-	cv::Matx33d inputPoints(  input_pt1.x, input_pt2.x, 0.0,
-							  input_pt1.y, input_pt2.y, 0.0,
+	Keypoint pt2 = Keypoint(inputTriangle[1].x - inputTriangle[0].x, inputTriangle[1].y - inputTriangle[0].y);
+	Keypoint pt3 = Keypoint(inputTriangle[2].x - inputTriangle[0].x, inputTriangle[2].y - inputTriangle[0].y);
+	cv::Matx33d inputPoints(  pt2.x, pt3.x, 0.0,
+							  pt2.y, pt3.y, 0.0,
 							  0.0, 0.0, 1.0 );
 
-	cv::Matx33d transpose_m(  1.0, 0.0, -transpose_pt.x,
-						0.0, 1.0, -transpose_pt.y,
-						0.0, 0.0, 1.0 );
+	cv::Matx33d transpose_m(    1.0, 0.0, -inputTriangle[0].x,
+								0.0, 1.0, -inputTriangle[0].y,
+								0.0, 0.0, 1.0 );
 
 	return  targetPoints * inputPoints.inv() * transpose_m;
 }
@@ -81,31 +61,27 @@ const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrix(const std::ve
 	auto pt1 = inputTriangle[0];
 	auto pt2 = inputTriangle[1];
 	auto pt3 = inputTriangle[2];
-    auto pt2_t = Keypoint(pt2.x-pt1.x, pt2.y-pt1.y);
-    auto pt3_t = Keypoint(pt3.x-pt1.x, pt3.y-pt1.y);
 
 	auto ret = std::vector<Keypoint>();
-	ret.push_back(Keypoint(0,0));
-    if( isToTheLeftOf(pt2_t, pt3_t) ){
-		ret.push_back(pt2_t);
-		ret.push_back(pt3_t);
+	ret.push_back(pt1);
+    if( isToTheLeftOf(pt2, pt3) ){
+		ret.push_back(pt2);
+		ret.push_back(pt3);
 	} else {
-		ret.push_back(pt3_t);
-		ret.push_back(pt2_t);
+		ret.push_back(pt3);
+		ret.push_back(pt2);
 	}
 	return ret;			
 }
 
-//@shift: shift the points this many positions, the last point rolls over to the first position each shift
-//@shift: this is used to get every rotation of the triangle we need (3, one for each edge)
-const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrixWithShift(const std::vector<Keypoint> shape, const std::vector<Keypoint>& targetTriangle, unsigned int shift = 0)
+//@shift: this is used to get every rotation of the triangle we need (3, one for each edge of the triangle)
+const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrixWithShift(const std::vector<Keypoint> shape, const std::vector<Keypoint>& targetTriangle, int shift)
 {
 	auto shape_cpy = shape;
 	shift %= shape_cpy.size();
 	std::rotate(shape_cpy.begin(),shape_cpy.begin()+shift,shape_cpy.end());
 	//printf("this is the shift: %d\n", shift);
-	auto t = prepShapeForCalcOfTransformationMatrix(shape_cpy, targetTriangle);
-	return t;
+	return prepShapeForCalcOfTransformationMatrix(shape_cpy, targetTriangle);
 }
 
 Mat formatTransformationMat(const Matx33d transformation_matrix)
@@ -144,7 +120,7 @@ void drawLines(Mat input_img, vector<Keypoint> shape){
 Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle, int shift)
 {
 	auto newShape = prepShapeForCalcOfTransformationMatrixWithShift(inputTriangle, targetTriangle, shift);
-	return calcTransformationMatrix(newShape, targetTriangle, inputTriangle[shift]);
+	return calcTransformationMatrix(newShape, targetTriangle);
 }
 
 std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFrag(ShapeAndPositionInvariantImage& fragment)
@@ -257,6 +233,28 @@ std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage
 		}
 	}
 	return ret;
+}
+
+std::string convertHashToString(FragmentHash inHash)
+{
+	std::string ret = "";
+	auto hash = inHash.getHash();
+	int h = 0;
+	for (int i = 0; i < hash.size(); i++)
+	{
+		if (hash[i]){
+			h += pow(2, (i % 8));
+			printf("h: %d i: %d \n", h, i);
+		}
+
+		if (i%8 == 7){
+			std::stringstream buffer;
+			buffer << std::hex << std::setfill('0') << std::setw(2) << h;
+			ret += buffer.str();
+			h = 0;
+		}
+	}
+	return "hash: " + ret;
 }
 
 }
