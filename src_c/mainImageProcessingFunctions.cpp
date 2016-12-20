@@ -14,9 +14,10 @@
 const std::vector<Keypoint> getTargetTriangle()
 {
     std::vector<Keypoint> v;
+	//* all points by TARGET_TRIANGLE_SCALE
     v.push_back(Keypoint(0,0));
-    v.push_back(Keypoint(.5,0.83666003));//sqrt(0.7) == 0.83666003
-    v.push_back(Keypoint(1,0));
+    v.push_back(Keypoint(.5*TARGET_TRIANGLE_SCALE,0.83666003*TARGET_TRIANGLE_SCALE));//sqrt(0.7) == 0.83666003
+    v.push_back(Keypoint(1*TARGET_TRIANGLE_SCALE,0));
     return v;
 }
 
@@ -24,7 +25,7 @@ namespace cv
 {
 
 
-Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle)
+Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle, Keypoint transpose_pt)
 {
 	/*
 	 * ######CODE BY ROSCA#######
@@ -54,9 +55,6 @@ Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, con
 	Keypoint target_pt2 = targetTriangle[2];
 	Keypoint input_pt1 = inputTriangle[1];
 	Keypoint input_pt2 = inputTriangle[2];
-	cv::Matx33d scale_m(  TARGET_TRIANGLE_SCALE, 0.0, 0.0,
-						   0.0, TARGET_TRIANGLE_SCALE, 0.0,
-						   0.0, 0.0, 1.0 );
 
 	cv::Matx33d targetPoints(  target_pt1.x, target_pt2.x, 0.0,
 							   target_pt1.y, target_pt2.y, 0.0,
@@ -66,8 +64,11 @@ Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, con
 							  input_pt1.y, input_pt2.y, 0.0,
 							  0.0, 0.0, 1.0 );
 
-	//return targetPoints * (scale_m*inputPoints.inv());
-	return  (targetPoints * (scale_m*inputPoints.inv()));
+	cv::Matx33d transpose_m(  1.0, 0.0, -transpose_pt.x,
+						0.0, 1.0, -transpose_pt.y,
+						0.0, 0.0, 1.0 );
+
+	return  targetPoints * inputPoints.inv() * transpose_m;
 }
 
 bool isToTheLeftOf(Keypoint pt1, Keypoint pt2)
@@ -106,14 +107,8 @@ const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrixWithShift(cons
 	return t;
 }
 
-Mat applyTransformationMatrixToImage(Mat inputImage, const Matx33d transformation_matrix)
+Mat formatTransformationMat(const Matx33d transformation_matrix)
 {
-	//strip the bottom row
-	
-	Mat outputImage(8, 8, CV_8UC3, Scalar(0,0,0));
-	//Mat outputImage(800, 900, CV_8UC3, Scalar(0,0,0));
-	//auto outputImage = inputImage.clone();
-	//Mat outputImage(200*.83, 200, CV_8UC3, Scalar(0,0,0));
 	cv::Mat m = cv::Mat::ones(2, 3, CV_64F);
 	m.at<double>(0, 0) = transformation_matrix(0, 0);
 	m.at<double>(0, 1) = transformation_matrix(0, 1);
@@ -121,66 +116,48 @@ Mat applyTransformationMatrixToImage(Mat inputImage, const Matx33d transformatio
 	m.at<double>(1, 0) = transformation_matrix(1, 0);
 	m.at<double>(1, 1) = transformation_matrix(1, 1);
 	m.at<double>(1, 2) = transformation_matrix(1, 2);
-	//std::cout << m << std::endl;
-	cv::warpAffine(inputImage, outputImage, m, outputImage.size());
-	//imshow("out", outputImage);
-	//waitKey();
-//	m = getRotationMatrix2D(Point2f(0,0), 10, 1);
-	m.at<double>(0, 0) = 1;
-	m.at<double>(0, 1) = 0;
-	m.at<double>(0, 2) = 100;
-	m.at<double>(1, 0) = 0;
-	m.at<double>(1, 1) = 1;
-	m.at<double>(1, 2) = 100;
+	return m;
+}
 
-	//std::cout << m << std::endl;
-	//cv::warpAffine(inputImage, outputImage, m, outputImage.size());
-	auto s = outputImage.size();
+Mat applyTransformationMatrixToImage(Mat inputImage, const Matx33d transformation_matrix)
+{
+	Mat m = formatTransformationMat(transformation_matrix);
+	
+	//Mat outputImage(8, 8, CV_8UC3, Scalar(0,0,0));
+	Mat outputImage(200*.83, 200, CV_8UC3, Scalar(0,0,0));
+	warpAffine(inputImage, outputImage, m, outputImage.size());
+	//DEBUG
+	imshow("fragmentAfterTransformation", outputImage);
+	waitKey();
+	//DEBUG
 	return outputImage;
+}
+
+void drawLines(Mat input_img, vector<Keypoint> shape){
+	cv::Scalar scl = Scalar(0, 0, 255);
+	cv::line(input_img, Point2f(shape[2].x, shape[2].y), Point2f(shape[0].x, shape[0].y), scl);
+	cv::line(input_img, Point2f(shape[0].x, shape[0].y), Point2f(shape[1].x, shape[1].y), scl);
+	cv::line(input_img, Point2f(shape[1].x, shape[1].y), Point2f(shape[2].x, shape[2].y), scl);
+}
+
+Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle)
+{
+	auto newShape = prepShapeForCalcOfTransformationMatrix(inputTriangle, targetTriangle);
+	return calcTransformationMatrix(newShape, targetTriangle, inputTriangle[0]);
 }
 
 std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFrag(ShapeAndPositionInvariantImage& fragment)
 {
 	auto shape = fragment.getShape();
-
 	auto ret = std::vector<ShapeAndPositionInvariantImage>();
 	for (int i = 0; i < NUM_OF_ROTATIONS; i++)
 	{	
-	
-		for (auto s : shape)
-		{
-			//printf("old shape (%.2lf, %.2lf)\n", s.x, s.y);
-		}
-
-		auto newShape = prepShapeForCalcOfTransformationMatrix(shape, getTargetTriangle());
-		//printf("for a new shape\n");
-
-		for (auto s : newShape)
-		{
-			//printf("new shape (%.2lf, %.2lf)\n", s.x, s.y);
-		}
-		 
-
-		auto transformationMatrix = calcTransformationMatrix(newShape, getTargetTriangle());
-		cv::Matx33d transpose_m(  1.0, 0.0, -shape[0].x,
-								0.0, 1.0, -shape[0].y,
-								0.0, 0.0, 1.0 );
-		transformationMatrix = transformationMatrix * transpose_m;
+		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle());
 		auto input_img = fragment.getImageData();
-		//std::cout << transformationMatrix << std::endl;
-		//imshow("d", fragment.getImageData());
-		//waitKey();
-		cv::Scalar scl = Scalar(0, 0, 255);
-
-		cv::line(input_img, Point2f(shape[2].x, shape[2].y), Point2f(shape[0].x, shape[0].y), scl);
-		cv::line(input_img, Point2f(shape[0].x, shape[0].y), Point2f(shape[1].x, shape[1].y), scl);
-		cv::line(input_img, Point2f(shape[1].x, shape[1].y), Point2f(shape[2].x, shape[2].y), scl);
+		//DEBUG
+		//drawLines(input_img, shape);
+		//DEBUG
 		auto newImageData = applyTransformationMatrixToImage(input_img, transformationMatrix);
-		//imshow("here", newImageData);
-		//waitKey();
-		//imwrite("testFrag.jpg", newImageData);
-		//imshow("d", newImageData);
-		//waitKey();
 		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, getTargetTriangle(), fragment.getImageFullPath());
 		ret.push_back(t);
 	}
@@ -215,7 +192,7 @@ std::vector<bool> dHashSlowWithoutResizeOrGrayscale(Mat resized_input_mat)
 	return output;
 }
 
-std::vector<bool> dHashSlowWithResizeOrGrayscale(const Mat input_mat)
+std::vector<bool> dHashSlowWithResizeAndGrayscale(const Mat input_mat)
 {
 	Mat gray_image;
 	cvtColor(input_mat, gray_image, CV_BGR2GRAY);
@@ -228,15 +205,29 @@ std::vector<bool> dHashSlowWithResizeOrGrayscale(const Mat input_mat)
 	return dHashSlowWithoutResizeOrGrayscale(resized_input_mat);
 }
 
+//returns hamming distance
+int getHashDistance(FragmentHash first, FragmentHash second){
+	auto hash1 = first.getHash();
+	auto hash2 = second.getHash();
+	assert(hash1.size() == hash2.size());
+
+	int dist = 0;
+	for (int i = 0; i < hash1.size(); i++)
+	{
+		dist += (hash1[i] != hash2[i])? 1:0;
+	}
+	return dist;
+}
+
 FragmentHash getHash(ShapeAndPositionInvariantImage frag)
 {
-	auto hash = dHashSlowWithResizeOrGrayscale(frag.getImageData());
+	auto hash = dHashSlowWithResizeAndGrayscale(frag.getImageData());
 	return FragmentHash(hash);
 }
 
 std::vector<FragmentHash> getHashesForFragments(std::vector<ShapeAndPositionInvariantImage>& normalisedFragments)
 {
-	auto ret = std::vector<FragmentHash>();//normalisedFragments.size()
+	auto ret = std::vector<FragmentHash>();
 	for (auto frag : normalisedFragments)
 	{
 		ret.push_back(getHash(frag));
@@ -256,9 +247,7 @@ std::vector<FragmentHash> getHashesForTriangle(ShapeAndPositionInvariantImage& i
 std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage inputImage, std::vector<Triangle> triangles)
 {
 	auto ret = std::vector<FragmentHash>();//size==triangles.size()*NUM_OF_ROTATIONS
-//	for (auto tri : triangles)
-//	{
-	for (int i = 0; i < triangles.size(); i++)
+	for (auto tri : triangles)
 	{
 		auto tri = triangles[i];
 		auto hashes = getHashesForTriangle(inputImage, tri);

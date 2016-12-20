@@ -97,7 +97,7 @@ void calcTransformationMatrixTest(){
     v.push_back(k1);
     v.push_back(k2);
     v.push_back(k3);
-    auto m = cv::calcTransformationMatrix(v, getTargetTriangle());
+    auto m = cv::calcTransformationMatrix(v, getTargetTriangle(), k1);
     //std::cout << "M = "<< std::endl << " "  << m << std::endl << std::endl;
 }
 
@@ -111,7 +111,7 @@ void normaliseScaleAndRotationForSingleFragTest(cv::Mat &img){
     v.push_back(k1);
     v.push_back(k2);
     v.push_back(k3);
-    auto m = cv::calcTransformationMatrix(v, getTargetTriangle());
+    auto m = cv::calcTransformationMatrix(v, getTargetTriangle(), k1);
     //std::cout << "working so far M = "<< std::endl << " "  << m << std::endl << std::endl;    
     auto im = ShapeAndPositionInvariantImage("d", img, v, "something");
     cv::normaliseScaleAndRotationForSingleFrag(im);
