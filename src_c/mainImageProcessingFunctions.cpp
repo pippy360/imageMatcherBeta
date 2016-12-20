@@ -11,7 +11,7 @@
 
 #define NUM_OF_ROTATIONS 3
 #define HASH_SIZE 8
-#define TARGET_TRIANGLE_SCALE 1 //the fragments are scaled by this value 
+#define TARGET_TRIANGLE_SCALE 10 //the fragments are scaled by this value 
 #define FRAGMENT_WIDTH TARGET_TRIANGLE_SCALE*HASH_SIZE
 #define FRAGMENT_HEIGHT TARGET_TRIANGLE_SCALE*(HASH_SIZE+1)
 
@@ -134,7 +134,7 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle(), i);
 		auto input_img = fragment.getImageData();
 		//DEBUG
-		drawLines(input_img, shape);
+		//drawLines(input_img, shape);
 		//DEBUG
 		auto newImageData = applyTransformationMatrixToImage(input_img, transformationMatrix);
 		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, getTargetTriangle(), fragment.getImageFullPath());
