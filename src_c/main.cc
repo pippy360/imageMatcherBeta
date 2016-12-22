@@ -103,7 +103,7 @@ void calcTransformationMatrixTest(){
 
 void normaliseScaleAndRotationForSingleFragTest(cv::Mat &img){
 	//cv::imshow("here", img);
-	//cv::waitKey();
+	cv::waitKey();
     auto k1 = Keypoint(0,0);
     auto k2 = Keypoint(100,0);
     auto k3 = Keypoint(100,100);
@@ -296,6 +296,18 @@ cv::Matx33d getATransformationMatrix(int width, int height){
     return cv::calcTransformationMatrixWithShapePreperation(tri.toKeypoints(), getTargetTriangle(width, height), 0);
 }
 
+cv::Mat getScaleMat(int image_x, int image_y)
+{
+	cv::Mat m = cv::Mat::ones(2, 3, CV_64F);
+	m.at<double>(0, 0) = ((float)(8+1))/ ((float)image_x);
+	m.at<double>(0, 1) = 0;
+	m.at<double>(0, 2) = 0;
+	m.at<double>(1, 0) = 0;
+	m.at<double>(1, 1) = ((float)(8))/(float)image_y;
+	m.at<double>(1, 2) = 0;
+	return m;
+}
+
 FragmentHash testHashingForResize()
 {
     // cv::Mat img = cv::imread("./small_lenna1.jpg");
@@ -312,7 +324,7 @@ FragmentHash testHashingForResize()
     std::cout << cv::convertHashToString(hash) << std::endl;
 
 	cv::imshow("here", outputImage);
-	cv::waitKey();
+	// cv::waitKey();
     return hash;    
 }
 
@@ -332,7 +344,7 @@ FragmentHash testHashingForResize2()
     std::cout << cv::convertHashToString(hash) << std::endl;
 
 	cv::imshow("here", outputImage);
-	cv::waitKey();
+	// cv::waitKey();
     return hash;    
 }
 
@@ -341,18 +353,35 @@ FragmentHash testHashingForResize3()
     // cv::Mat img = cv::imread("./small_lenna1.jpg");
     cv::Mat img = cv::imread("../input/rick1.jpg");
 
-    cv::Mat outputImage(8, 8+1, CV_8UC3, cv::Scalar(0,0,0));
-    auto transformation_matrix = getATransformationMatrix(8+1, 8);
+    int mult = 1;
+    int val = (8*mult);
+    cv::Mat outputImage((val), (val)+1, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformation_matrix = getATransformationMatrix((val)+1, (val));
     // auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
 
     cv::Mat m = formatTransformationMat(transformation_matrix);
+    //cv::warpAffine(img, outputImage, m, outputImage.size(), cv::INTER_LINEAR);
     cv::warpAffine(img, outputImage, m, outputImage.size());
 
+    cv::Mat outputImage2((val*10), (val*10)+1, CV_8UC3, cv::Scalar(0,0,0));
+    transformation_matrix = getATransformationMatrix((val*10)+1, (val*10));
+    m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage2, m, outputImage2.size());
+    cv::Mat resized_input_mat;    
+    cv::resize(outputImage2, resized_input_mat, cvSize(val+1, val));
+    
+
+	// cv::imshow("here", outputImage);
+	// cv::imshow("here2", resized_input_mat);
     auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(outputImage));
     std::cout << cv::convertHashToString(hash) << std::endl;
-
-	cv::imshow("here", outputImage);
-	cv::waitKey();
+    auto hash2 = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
+    cv::imwrite("./hash1.jpg", outputImage);
+    cv::imwrite("./hash2.jpg", resized_input_mat);
+    std::cout << cv::convertHashToString(hash2) << std::endl;
+    int dist = cv::getHashDistance(hash, hash2);
+    printf("dist diff : %d\n", dist);
+	// cv::waitKey();
     return hash;
 }
 
@@ -371,12 +400,46 @@ FragmentHash testHashingForResize4()
     cv::Mat resized_input_mat;
     int height = 8;
 	int width = 8+1;
+    
 	resize(outputImage, resized_input_mat, cvSize(width, height));
     auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
     std::cout << cv::convertHashToString(hash) << std::endl;
 
 	cv::imshow("here", outputImage);
-	cv::waitKey();
+	// cv::waitKey();
+    return hash;
+}
+
+FragmentHash testHashingForResize5()
+{
+    // cv::Mat img = cv::imread("./small_lenna1.jpg");
+    cv::Mat img = cv::imread("../input/rick1.jpg");
+
+    cv::Mat outputImage(500, 500, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformation_matrix = getATransformationMatrix(500, 500);
+    // auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
+
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    cv::Mat resized_input_mat;
+    int height = 8;
+	int width = 8+1;
+    
+    int mult = 1;
+    cv::Mat outputImage2((8*mult), (8*mult)+1, CV_8UC3, cv::Scalar(0,0,0));
+    m = getScaleMat(500.0/mult, 500.0/mult);
+    std::cout << "Mat: " << m << std::endl;
+    cv::warpAffine(outputImage, outputImage2, m, outputImage2.size());
+    auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(outputImage2));
+    cv::imwrite("./hash3_1.jpg", outputImage2);
+	// resize(outputImage, resized_input_mat, cvSize(width, height));
+    // auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
+    // cv::imwrite("./hash3_2.jpg", resized_input_mat);
+    // std::cout << cv::convertHashToString(hash) << std::endl;
+    
+	cv::imshow("here", outputImage2);
+	//cv::waitKey();
     return hash;
 }
 
@@ -389,24 +452,33 @@ int main(int argc, char* argv[])
     dHashSlowTest();
     testHashConversion();
     //speedTest();
-    auto h1 = testHashingForResize();
-    auto h2 = testHashingForResize2();
-    auto h3 = testHashingForResize3();
-    auto h4 = testHashingForResize4();
+    // auto h1 = testHashingForResize();
+    // auto h2 = testHashingForResize2();
+    // auto h3 = testHashingForResize3();
+    // auto h4 = testHashingForResize4();
+    // auto h5 = testHashingForResize5();
+
+    //now test speed and quality of fixes
 
     int dist;
     dist = cv::getHashDistance(h1, h2);
-    printf("dist1: %d\n", dist);
+    printf("dist h1-h2: %d\n", dist);
     dist = cv::getHashDistance(h1, h3);
-    printf("dist2: %d\n", dist);
+    printf("dist h1-h3: %d\n", dist);
     dist = cv::getHashDistance(h2, h3);
-    printf("dist3: %d\n", dist);
+    printf("dist h2-h3: %d\n", dist);
     dist = cv::getHashDistance(h1, h4);
-    printf("dist4: %d\n", dist);
+    printf("dist h1-h4: %d\n", dist);
     dist = cv::getHashDistance(h2, h4);
-    printf("dist5: %d\n", dist);
+    printf("dist h2-h4: %d\n", dist);
     dist = cv::getHashDistance(h3, h4);
-    printf("dist6: %d\n", dist);
+    printf("dist h3-h4: %d\n", dist);
+    dist = cv::getHashDistance(h1, h5);
+    printf("dist h1-h5: %d\n", dist);
+    dist = cv::getHashDistance(h2, h5);
+    printf("dist h2-h5: %d\n", dist);
+    dist = cv::getHashDistance(h3, h5);
+    printf("dist h3-h5: %d\n", dist);
 
     // std::ifstream file("output.txt");
     // std::string filename = readTheName(&file);
@@ -448,7 +520,7 @@ int main(int argc, char* argv[])
 	auto shape = getShapeFromImage(img);
 	auto tris = cv::readTheTriangles();
 	cv::imshow("here", img);
-	cv::waitKey();
+	// cv::waitKey();
     */
 	return 0;
 }
