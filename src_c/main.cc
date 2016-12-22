@@ -286,27 +286,98 @@ void testHashConversion()
     std::cout << str << std::endl;
 }
 
-cv::Matx33d getATransformationMatrix(){
+cv::Matx33d getATransformationMatrix(int width, int height){
 
     std::ifstream file("output.txt");
     std::string filename = readTheName(&file);
     auto tris = readTheTriangles(&file);
     auto tri = tris[0];
     
-    return cv::calcTransformationMatrixWithShapePreperation(tri.toKeypoints(), getTargetTriangle(200, 200), 0);
+    return cv::calcTransformationMatrixWithShapePreperation(tri.toKeypoints(), getTargetTriangle(width, height), 0);
 }
 
-void testHashingForResize()
+FragmentHash testHashingForResize()
 {
-    cv::Mat img = cv::imread("./small_lenna1.jpg");
+    // cv::Mat img = cv::imread("./small_lenna1.jpg");
+    cv::Mat img = cv::imread("../input/rick1.jpg");
 
-    auto outputImage = cv::Mat(200, 200, CV_8UC3, cv::Scalar(0,0,0));
-    auto transformationMatrix = getATransformationMatrix();
-    auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
-    //cv::warpAffine(img, outputImage, transformationMatrix, outputImage.size());
+    cv::Mat outputImage(200, 200, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformation_matrix = getATransformationMatrix(200, 200);
+    // auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
 
-    cv::imshow("d", outputImage);
-    cv::waitKey();
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(outputImage));
+    std::cout << cv::convertHashToString(hash) << std::endl;
+
+	cv::imshow("here", outputImage);
+	cv::waitKey();
+    return hash;    
+}
+
+FragmentHash testHashingForResize2()
+{
+    // cv::Mat img = cv::imread("./small_lenna1.jpg");
+    cv::Mat img = cv::imread("../input/rick1.jpg");
+
+    cv::Mat outputImage(400, 400, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformation_matrix = getATransformationMatrix(400, 400);
+    // auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
+
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(outputImage));
+    std::cout << cv::convertHashToString(hash) << std::endl;
+
+	cv::imshow("here", outputImage);
+	cv::waitKey();
+    return hash;    
+}
+
+FragmentHash testHashingForResize3()
+{
+    // cv::Mat img = cv::imread("./small_lenna1.jpg");
+    cv::Mat img = cv::imread("../input/rick1.jpg");
+
+    cv::Mat outputImage(8, 8+1, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformation_matrix = getATransformationMatrix(8+1, 8);
+    // auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
+
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(outputImage));
+    std::cout << cv::convertHashToString(hash) << std::endl;
+
+	cv::imshow("here", outputImage);
+	cv::waitKey();
+    return hash;
+}
+
+FragmentHash testHashingForResize4()
+{
+    // cv::Mat img = cv::imread("./small_lenna1.jpg");
+    cv::Mat img = cv::imread("../input/rick1.jpg");
+
+    cv::Mat outputImage(500, 500, CV_8UC3, cv::Scalar(0,0,0));
+    auto transformation_matrix = getATransformationMatrix(500, 500);
+    // auto out2 = cv::applyTransformationMatrixToImage(img, transformationMatrix);
+
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    cv::Mat resized_input_mat;
+    int height = 8;
+	int width = 8+1;
+	resize(outputImage, resized_input_mat, cvSize(width, height));
+    auto hash = FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
+    std::cout << cv::convertHashToString(hash) << std::endl;
+
+	cv::imshow("here", outputImage);
+	cv::waitKey();
+    return hash;
 }
 
 int main(int argc, char* argv[])
@@ -318,7 +389,24 @@ int main(int argc, char* argv[])
     dHashSlowTest();
     testHashConversion();
     //speedTest();
-    testHashingForResize();
+    auto h1 = testHashingForResize();
+    auto h2 = testHashingForResize2();
+    auto h3 = testHashingForResize3();
+    auto h4 = testHashingForResize4();
+
+    int dist;
+    dist = cv::getHashDistance(h1, h2);
+    printf("dist1: %d\n", dist);
+    dist = cv::getHashDistance(h1, h3);
+    printf("dist2: %d\n", dist);
+    dist = cv::getHashDistance(h2, h3);
+    printf("dist3: %d\n", dist);
+    dist = cv::getHashDistance(h1, h4);
+    printf("dist4: %d\n", dist);
+    dist = cv::getHashDistance(h2, h4);
+    printf("dist5: %d\n", dist);
+    dist = cv::getHashDistance(h3, h4);
+    printf("dist6: %d\n", dist);
 
     // std::ifstream file("output.txt");
     // std::string filename = readTheName(&file);
