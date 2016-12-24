@@ -204,6 +204,14 @@ def dumpImage(fullImagePath):
 	img = buildImage(fullImagePath)
 	nm.dumpTheInfoForTheCplusplus(img)
 
+#debug
+def process10Triangles(fullImagePath):
+	searchingImage = buildImage(fullImagePath)
+	searchingImageHashObjs, numberOfFragments = nm.getAllTheHashesForImage_debug(searchingImage, 10)	
+	for obj in searchingImageHashObjs:
+		cv2.imshow("frag", obj.normalisedFragment.fragmentImage)
+		cv2.waitKey()
+		print "hash: " + str(obj.fragmentHash) + " shape: " + str(obj.fragmentImageCoords)
 
 
 ######################################################################################
@@ -258,9 +266,10 @@ name8 = "rick4"
 #img = cv2.imread("../input/"+name4+".jpg")
 #gk.getTheKeyPoints(img)
 #cv2.waitKey()
-addImageToDB(toFullPath('small_lenna1'))
+#addImageToDB(toFullPath('small_lenna1'))
 #showMatches(toFullPath(name4))
-
+process10Triangles(toFullPath('img1'))
+	
 #showMatches("lennaWithGreenDotsInTriangle2", "lennaWithGreenDotsInTriangle3")
 
 #showMatches("costanza_orginal_dots", "lennaWithGreenDotsInTriangle3")

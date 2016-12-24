@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <stdio.h>
 #include <iomanip>      // std::setw
-#include <math.h>       /* pow */
+#include <math.h>       /* pow, atan2 */
 
 #include "FragmentHash.h"
 #include "ShapeAndPositionInvariantImage.h"
@@ -14,6 +14,7 @@
 #define TARGET_TRIANGLE_SCALE 10 //the fragments are scaled by this value 
 #define FRAGMENT_WIDTH TARGET_TRIANGLE_SCALE*HASH_SIZE
 #define FRAGMENT_HEIGHT TARGET_TRIANGLE_SCALE*(HASH_SIZE+1)
+#define PI 3.14159265
 
 const std::vector<Keypoint> getTargetTriangle(int scalex=FRAGMENT_WIDTH, int scaley=FRAGMENT_HEIGHT)
 {
@@ -27,6 +28,94 @@ const std::vector<Keypoint> getTargetTriangle(int scalex=FRAGMENT_WIDTH, int sca
 
 namespace cv
 {
+
+
+std::string convertHashToString(FragmentHash inHash)
+{
+	std::string ret = "";
+	auto hash = inHash.getHash();
+	int h = 0;
+	for (int i = 0; i < hash.size(); i++)
+	{
+		if (hash[i]){
+			h += pow(2, (i % 8));
+		}
+
+		if (i%8 == 7){
+			std::stringstream buffer;
+			buffer << std::hex << std::setfill('0') << std::setw(2) << h;
+			ret += buffer.str();
+			h = 0;
+		}
+	}
+	return ret;
+}
+
+std::string getShapeStr(std::vector<Keypoint> shape)
+{
+    auto k1 = shape[0];
+    auto k2 = shape[1];
+    auto k3 = shape[2];
+    std::ostringstream stringStream;
+    stringStream << "[" << "[" << k1.x << ", " << k1.y << "], " << "[" << k2.x << ", " << k2.y << "], " << "[" << k3.x << ", " << k3.y << "]]";
+    std::string copyOfStr = stringStream.str();
+    return copyOfStr;
+}
+
+std::vector<bool> dHashSlowWithoutResizeOrGrayscale(Mat resized_input_mat)
+{
+	std::vector<bool> output;
+	int width_j = resized_input_mat.cols;
+	int height_i = resized_input_mat.rows;
+	for (int i = 0; i < height_i; i++)
+	{
+		for (int j = 0; j < width_j; j++)// "width_j-1" skip the last run
+		{
+			if(j == width_j -1 ){
+				continue;
+			}
+			unsigned char left = resized_input_mat.at<unsigned char>(i, j, 0);
+			unsigned char right = resized_input_mat.at<unsigned char>(i, j+1, 0);
+			output.push_back( right > left );
+		}
+	}
+	return output;
+}
+
+
+std::vector<bool> dHashSlowWithResizeAndGrayscale(const Mat input_mat)
+{
+	Mat gray_image;
+	cvtColor(input_mat, gray_image, CV_BGR2GRAY);
+	
+	int height = HASH_SIZE;
+	int width = HASH_SIZE+1;
+	Mat resized_input_mat;
+	resize(gray_image, resized_input_mat, cvSize(width, height));
+
+	return dHashSlowWithoutResizeOrGrayscale(resized_input_mat);
+}
+
+//returns hamming distance
+int getHashDistance(FragmentHash first, FragmentHash second){
+	auto hash1 = first.getHash();
+	auto hash2 = second.getHash();
+	assert(hash1.size() == hash2.size());
+
+	int dist = 0;
+	for (int i = 0; i < hash1.size(); i++)
+	{
+		dist += (hash1[i] != hash2[i])? 1:0;
+	}
+	return dist;
+}
+
+FragmentHash getHash(ShapeAndPositionInvariantImage frag)
+{
+	auto hash = dHashSlowWithResizeAndGrayscale(frag.getImageData());
+	return FragmentHash(hash);
+}
+
 
 
 Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle)
@@ -60,13 +149,37 @@ bool isToTheLeftOf(Keypoint pt1, Keypoint pt2)
 
 const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrix(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle)
 {
+	/*
+	
+	tri = fragmentImageShape
+	x_trans = tri[0][0]
+	y_trans = tri[0][1]
+	pt1 = (tri[1][0] - x_trans, tri[1][1] - y_trans)
+	pt2 = (tri[2][0] - x_trans, tri[2][1] - y_trans)
+
+	import math
+	t1 = math.atan2(pt1[1], pt1[0])
+	t1 %= 2*math.pi
+	#print t1
+	t2 = math.atan2(pt2[1], pt2[0])
+	t2 %= 2*math.pi
+	#print t2
+	if t1 < t2:
+		return np.matrix(pt1).T, np.matrix(pt2).T, -x_trans, -y_trans
+	else:
+		return np.matrix(pt2).T, np.matrix(pt1).T, -x_trans, -y_trans
+	*/
+
+
 	auto pt1 = inputTriangle[0];
 	auto pt2 = inputTriangle[1];
 	auto pt3 = inputTriangle[2];
+	auto pt2_t = Keypoint(pt2.x-pt1.x, pt2.y-pt1.y);
+	auto pt3_t = Keypoint(pt3.x-pt1.x, pt3.y-pt1.y);
 
 	auto ret = std::vector<Keypoint>();
 	ret.push_back(pt1);
-    if( isToTheLeftOf(pt2, pt3) ){
+    if( atan2(pt2_t.y, pt2_t.x) < atan2(pt3_t.y, pt3_t.x) ){
 		ret.push_back(pt2);
 		ret.push_back(pt3);
 	} else {
@@ -102,12 +215,12 @@ Mat applyTransformationMatrixToImage(Mat inputImage, const Matx33d transformatio
 {
 	Mat m = formatTransformationMat(transformation_matrix);
 	
-	Mat outputImage(FRAGMENT_HEIGHT, FRAGMENT_WIDTH, CV_8UC3, Scalar(0,0,0));
-	//Mat outputImage(200*.83, 200, CV_8UC3, Scalar(0,0,0));
+	//Mat outputImage(FRAGMENT_HEIGHT, FRAGMENT_WIDTH, CV_8UC3, Scalar(0,0,0));
+	Mat outputImage(200*.83, 200, CV_8UC3, Scalar(0,0,0));
 	warpAffine(inputImage, outputImage, m, outputImage.size());
 	//DEBUG
-	imshow("fragmentAfterTransformation", outputImage);
-	waitKey();
+	// imshow("fragmentAfterTransformation", outputImage);
+	// waitKey();
 	//DEBUG
 	return outputImage;
 }
@@ -131,13 +244,20 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 	auto ret = std::vector<ShapeAndPositionInvariantImage>();
 	for (int i = 0; i < NUM_OF_ROTATIONS; i++)
 	{	
-		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle(), i);
+		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle(200, 200*.83), i);
 		auto input_img = fragment.getImageData();
 		//DEBUG
-		//drawLines(input_img, shape);
+		drawLines(input_img, shape);
 		//DEBUG
 		auto newImageData = applyTransformationMatrixToImage(input_img, transformationMatrix);
-		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, getTargetTriangle(), fragment.getImageFullPath());
+		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, shape, fragment.getImageFullPath());
+		//DEBUG
+		auto hash_b = dHashSlowWithResizeAndGrayscale(newImageData);
+		auto hash = FragmentHash(hash_b, shape);
+		printf("hash: %s shape: %s\n", convertHashToString(hash).c_str(), getShapeStr(hash.getShape()).c_str());
+		imshow("fragmentAfterTransformation", newImageData);
+		waitKey();
+		//DEBUG
 		ret.push_back(t);
 	}
 	
@@ -147,61 +267,7 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 ShapeAndPositionInvariantImage getFragment(const ShapeAndPositionInvariantImage& input_image, const Triangle& tri)
 {
 	//TODO: cut out the fragment
-	auto ret = ShapeAndPositionInvariantImage("some frag", input_image.getImageData(), tri.toKeypoints(), "");
-	return ret;
-}
-
-std::vector<bool> dHashSlowWithoutResizeOrGrayscale(Mat resized_input_mat)
-{
-	std::vector<bool> output;
-	int width_j = resized_input_mat.cols;
-	int height_i = resized_input_mat.rows;
-	for (int i = 0; i < height_i; i++)
-	{
-		for (int j = 0; j < width_j; j++)// "width_j-1" skip the last run
-		{
-			if(j == width_j -1 ){
-				continue;
-			}
-			unsigned char left = resized_input_mat.at<unsigned char>(i, j, 0);
-			unsigned char right = resized_input_mat.at<unsigned char>(i, j+1, 0);
-			output.push_back( right > left );
-		}
-	}
-	return output;
-}
-
-std::vector<bool> dHashSlowWithResizeAndGrayscale(const Mat input_mat)
-{
-	Mat gray_image;
-	cvtColor(input_mat, gray_image, CV_BGR2GRAY);
-	
-	int height = HASH_SIZE;
-	int width = HASH_SIZE+1;
-	Mat resized_input_mat;
-	resize(gray_image, resized_input_mat, cvSize(width, height));
-
-	return dHashSlowWithoutResizeOrGrayscale(resized_input_mat);
-}
-
-//returns hamming distance
-int getHashDistance(FragmentHash first, FragmentHash second){
-	auto hash1 = first.getHash();
-	auto hash2 = second.getHash();
-	assert(hash1.size() == hash2.size());
-
-	int dist = 0;
-	for (int i = 0; i < hash1.size(); i++)
-	{
-		dist += (hash1[i] != hash2[i])? 1:0;
-	}
-	return dist;
-}
-
-FragmentHash getHash(ShapeAndPositionInvariantImage frag)
-{
-	auto hash = dHashSlowWithResizeAndGrayscale(frag.getImageData());
-	return FragmentHash(hash);
+	return ShapeAndPositionInvariantImage("some frag", input_image.getImageData(), tri.toKeypoints(), "");
 }
 
 std::vector<FragmentHash> getHashesForFragments(std::vector<ShapeAndPositionInvariantImage>& normalisedFragments)
@@ -209,7 +275,13 @@ std::vector<FragmentHash> getHashesForFragments(std::vector<ShapeAndPositionInva
 	auto ret = std::vector<FragmentHash>();
 	for (auto frag : normalisedFragments)
 	{
-		ret.push_back(getHash(frag));
+		//DEBUG
+		//cv::imshow("./frag.jpg", frag.getImageData());
+		//cv::waitKey();
+		//\DEBUG
+		auto hash = dHashSlowWithResizeAndGrayscale(frag.getImageData());
+		auto frag_hash = FragmentHash(hash, frag.getShape());
+		ret.push_back(frag_hash);
 	}
 	return ret;
 }
@@ -226,9 +298,26 @@ std::vector<FragmentHash> getHashesForTriangle(ShapeAndPositionInvariantImage& i
 std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage inputImage, std::vector<Triangle> triangles)
 {
 	auto ret = std::vector<FragmentHash>();//size==triangles.size()*NUM_OF_ROTATIONS
+	for (auto tri : triangles)
+	{
+	// for (int i = 0; i < 3; i++)
+	// {
+	// 	auto tri = triangles[i];
+		auto hashes = getHashesForTriangle(inputImage, tri);
+		for (auto hash: hashes)
+		{
+			ret.push_back(hash);
+		}
+	}
+	return ret;
+}
+
+std::vector<FragmentHash> getAllTheHashesForImage_debug(ShapeAndPositionInvariantImage inputImage, std::vector<Triangle> triangles, int number)
+{
+	auto ret = std::vector<FragmentHash>();//size==triangles.size()*NUM_OF_ROTATIONS
 	// for (auto tri : triangles)
 	// {
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < number; i++)
 	{
 		auto tri = triangles[i];
 		auto hashes = getHashesForTriangle(inputImage, tri);
@@ -240,26 +329,6 @@ std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage
 	return ret;
 }
 
-std::string convertHashToString(FragmentHash inHash)
-{
-	std::string ret = "";
-	auto hash = inHash.getHash();
-	int h = 0;
-	for (int i = 0; i < hash.size(); i++)
-	{
-		if (hash[i]){
-			h += pow(2, (i % 8));
-		}
-
-		if (i%8 == 7){
-			std::stringstream buffer;
-			buffer << std::hex << std::setfill('0') << std::setw(2) << h;
-			ret += buffer.str();
-			h = 0;
-		}
-	}
-	return "hash: " + ret;
-}
 
 }
 

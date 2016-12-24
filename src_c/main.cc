@@ -13,6 +13,7 @@
 void toTheLeftOfTest()
 {
 
+    //FIXME: THIS IS ACTUALLY BROKEN!!!
     //basic
     auto k1 = Keypoint(1,1);
     auto k2 = Keypoint(1,0);
@@ -286,6 +287,13 @@ void testHashConversion()
     std::cout << str << std::endl;
 }
 
+std::vector<Triangle> getTheTris(){
+    std::ifstream file("output.txt");
+    std::string filename = readTheName(&file);
+    auto tris = readTheTriangles(&file);
+    return tris;
+}
+
 cv::Matx33d getATransformationMatrix(int width, int height){
 
     std::ifstream file("output.txt");
@@ -293,6 +301,10 @@ cv::Matx33d getATransformationMatrix(int width, int height){
     auto tris = readTheTriangles(&file);
     auto tri = tris[0];
     
+    return cv::calcTransformationMatrixWithShapePreperation(tri.toKeypoints(), getTargetTriangle(width, height), 0);
+}
+
+cv::Matx33d getATransformationMatrix2(Triangle tri, int width, int height){
     return cv::calcTransformationMatrixWithShapePreperation(tri.toKeypoints(), getTargetTriangle(width, height), 0);
 }
 
@@ -443,42 +455,91 @@ FragmentHash testHashingForResize5()
     return hash;
 }
 
+FragmentHash testSpeedWithoutFix_s(const cv::Mat img, Triangle tri)
+{
+    int width_outputImage_x = 200;
+    int width_outputImage_y = 200;
+    cv::Mat outputImage(width_outputImage_y, width_outputImage_x, CV_8UC3, cv::Scalar(0,0,0));    
+    auto transformation_matrix = getATransformationMatrix2(tri, width_outputImage_x, width_outputImage_y);
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    //now do the resize
+    cv::Mat resized_input_mat;
+    int height = 8;
+	int width = 8+1;
+	resize(outputImage, resized_input_mat, cvSize(width, height));
+
+
+    cv::imwrite("./hash_from_org_test.jpg", resized_input_mat);
+
+
+    return FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
+}
+
+std::vector<FragmentHash> testSpeedWithoutFix()
+{
+    cv::Mat img = cv::imread("../input/rick1.jpg");
+    std::vector<FragmentHash> hashes;
+    auto tris = getTheTris();
+    for(int i = 0; i < 3000; i++)
+    {
+        auto tri = tris[i];
+        auto hash = testSpeedWithoutFix_s(img, tri);
+        hashes.push_back(hash);
+    }
+    return hashes;
+}
+
+FragmentHash testSpeedWithoutFix2_s(const cv::Mat img, Triangle tri)
+{
+    int width_outputImage_x = 8+1;
+    int width_outputImage_y = 8;
+    cv::Mat outputImage(width_outputImage_y, width_outputImage_x, CV_8UC3, cv::Scalar(0,0,0));    
+    auto transformation_matrix = getATransformationMatrix2(tri, width_outputImage_x, width_outputImage_y);
+    cv::Mat m = formatTransformationMat(transformation_matrix);
+    cv::warpAffine(img, outputImage, m, outputImage.size());
+
+    //now do the resize
+    cv::Mat resized_input_mat;
+    int height = 8;
+	int width = 8+1;
+	resize(outputImage, resized_input_mat, cvSize(width, height));
+
+
+    cv::imwrite("./hash_from_org_test.jpg", resized_input_mat);
+
+
+    return FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
+}
+
+std::vector<FragmentHash> testSpeedWithoutFix2()
+{
+    cv::Mat img = cv::imread("../input/rick1.jpg");
+    std::vector<FragmentHash> hashes;
+    auto tris = getTheTris();
+    for(int i = 0; i < 3000; i++)
+    {
+        auto tri = tris[i];
+        auto hash = testSpeedWithoutFix2_s(img, tri);
+        hashes.push_back(hash);
+    }
+    return hashes;
+}
+
+
 int main(int argc, char* argv[])
 {
-	toTheLeftOfTest();
-    prepShapeForCalcOfTransformationMatrixTest();
-    shiftTest();
-    calcTransformationMatrixTest();
-    dHashSlowTest();
-    testHashConversion();
-    //speedTest();
-    // auto h1 = testHashingForResize();
-    // auto h2 = testHashingForResize2();
-    // auto h3 = testHashingForResize3();
-    // auto h4 = testHashingForResize4();
-    // auto h5 = testHashingForResize5();
 
-    //now test speed and quality of fixes
-
-    int dist;
-    dist = cv::getHashDistance(h1, h2);
-    printf("dist h1-h2: %d\n", dist);
-    dist = cv::getHashDistance(h1, h3);
-    printf("dist h1-h3: %d\n", dist);
-    dist = cv::getHashDistance(h2, h3);
-    printf("dist h2-h3: %d\n", dist);
-    dist = cv::getHashDistance(h1, h4);
-    printf("dist h1-h4: %d\n", dist);
-    dist = cv::getHashDistance(h2, h4);
-    printf("dist h2-h4: %d\n", dist);
-    dist = cv::getHashDistance(h3, h4);
-    printf("dist h3-h4: %d\n", dist);
-    dist = cv::getHashDistance(h1, h5);
-    printf("dist h1-h5: %d\n", dist);
-    dist = cv::getHashDistance(h2, h5);
-    printf("dist h2-h5: %d\n", dist);
-    dist = cv::getHashDistance(h3, h5);
-    printf("dist h3-h5: %d\n", dist);
+    //auto vals = testSpeedWithoutFix2();
+    cv::Mat img = cv::imread("../input/img1.jpg");
+    auto tris = getTheTris();
+    auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
+    auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, 3);
+    for(FragmentHash v: vals)
+    {
+	    printf("hash: %s shape: %s\n", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
+    }
 
     // std::ifstream file("output.txt");
     // std::string filename = readTheName(&file);
