@@ -209,9 +209,12 @@ def process10Triangles(fullImagePath):
 	searchingImage = buildImage(fullImagePath)
 	searchingImageHashObjs, numberOfFragments = nm.getAllTheHashesForImage_debug(searchingImage, 10)	
 	for obj in searchingImageHashObjs:
-		cv2.imshow("frag", obj.normalisedFragment.fragmentImage)
-		cv2.waitKey()
-		print "hash: " + str(obj.fragmentHash) + " shape: " + str(obj.fragmentImageCoords)
+		# cv2.imshow("frag", obj.normalisedFragment.fragmentImage)
+		# cv2.waitKey()
+		fixedShape = []
+		for pt in obj.fragmentImageCoords:
+			fixedShape.append([int(pt[0]), int(pt[1])])
+		print "hash: " + str(obj.fragmentHash) + " shape: " + str(fixedShape)
 
 
 ######################################################################################

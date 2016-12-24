@@ -21,7 +21,7 @@ const std::vector<Keypoint> getTargetTriangle(int scalex=FRAGMENT_WIDTH, int sca
     std::vector<Keypoint> v;
 	//multiply all points by TARGET_TRIANGLE_SCALE
     v.push_back(Keypoint(0,0));
-    v.push_back(Keypoint(.5*scalex,1*scaley));//sqrt(0.7) == 0.83666003
+    v.push_back(Keypoint(.5*scalex,1*scaley));
     v.push_back(Keypoint(1*scalex,0));
     return v;
 }
@@ -84,14 +84,14 @@ std::vector<bool> dHashSlowWithoutResizeOrGrayscale(Mat resized_input_mat)
 
 
 std::vector<bool> dHashSlowWithResizeAndGrayscale(const Mat input_mat)
-{
-	Mat gray_image;
-	cvtColor(input_mat, gray_image, CV_BGR2GRAY);
-	
+{	
 	int height = HASH_SIZE;
 	int width = HASH_SIZE+1;
 	Mat resized_input_mat;
-	resize(gray_image, resized_input_mat, cvSize(width, height));
+	resize(input_mat, resized_input_mat, cvSize(width, height));
+
+	Mat gray_image;
+	cvtColor(resized_input_mat, gray_image, CV_BGR2GRAY);
 
 	return dHashSlowWithoutResizeOrGrayscale(resized_input_mat);
 }
@@ -131,6 +131,7 @@ Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, con
 
 	Keypoint pt2 = Keypoint(inputTriangle[1].x - inputTriangle[0].x, inputTriangle[1].y - inputTriangle[0].y);
 	Keypoint pt3 = Keypoint(inputTriangle[2].x - inputTriangle[0].x, inputTriangle[2].y - inputTriangle[0].y);
+
 	cv::Matx33d inputPoints(  pt2.x, pt3.x, 0.0,
 							  pt2.y, pt3.y, 0.0,
 							  0.0, 0.0, 1.0 );
@@ -138,7 +139,9 @@ Matx33d calcTransformationMatrix(const std::vector<Keypoint>& inputTriangle, con
 	cv::Matx33d transpose_m(  1.0, 0.0, -inputTriangle[0].x,
 							  0.0, 1.0, -inputTriangle[0].y,
 							  0.0, 0.0, 1.0 );
-
+	
+	// std::cout << "targetPoints:\n" << targetPoints << std::endl;
+	// std::cout << "inputPoints.inv(): \n" << inputPoints.inv() << std::endl;
 	return  targetPoints * inputPoints.inv() * transpose_m;
 }
 
@@ -235,6 +238,7 @@ void drawLines(Mat input_img, vector<Keypoint> shape){
 Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>& inputTriangle, const std::vector<Keypoint>& targetTriangle, int shift)
 {
 	auto newShape = prepShapeForCalcOfTransformationMatrixWithShift(inputTriangle, targetTriangle, shift);
+
 	return calcTransformationMatrix(newShape, targetTriangle);
 }
 
@@ -245,18 +249,19 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 	for (int i = 0; i < NUM_OF_ROTATIONS; i++)
 	{	
 		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle(200, 200*.83), i);
+
 		auto input_img = fragment.getImageData();
 		//DEBUG
-		drawLines(input_img, shape);
+		// drawLines(input_img, shape);
 		//DEBUG
 		auto newImageData = applyTransformationMatrixToImage(input_img, transformationMatrix);
 		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, shape, fragment.getImageFullPath());
 		//DEBUG
 		auto hash_b = dHashSlowWithResizeAndGrayscale(newImageData);
 		auto hash = FragmentHash(hash_b, shape);
-		printf("hash: %s shape: %s\n", convertHashToString(hash).c_str(), getShapeStr(hash.getShape()).c_str());
-		imshow("fragmentAfterTransformation", newImageData);
-		waitKey();
+		// printf("hash: %s shape: %s\n", convertHashToString(hash).c_str(), getShapeStr(hash.getShape()).c_str());
+		// imshow("fragmentAfterTransformation", newImageData);
+		// waitKey(0);
 		//DEBUG
 		ret.push_back(t);
 	}

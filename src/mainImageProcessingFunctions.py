@@ -103,66 +103,70 @@ def prepShapeForCalculationOfTranslationMatrix(fragmentImageShape):
 
 	import math
 	t1 = math.atan2(pt1[1], pt1[0])
-	t1 %= 2*math.pi
-	#print t1
 	t2 = math.atan2(pt2[1], pt2[0])
-	t2 %= 2*math.pi
-	#print t2
 	if t1 < t2:
-		return np.matrix(pt1).T, np.matrix(pt2).T, -x_trans, -y_trans
+		return [fragmentImageShape[0], fragmentImageShape[1], fragmentImageShape[2]] 
 	else:
-		return np.matrix(pt2).T, np.matrix(pt1).T, -x_trans, -y_trans
+		return [fragmentImageShape[0], fragmentImageShape[2], fragmentImageShape[1]]
+
+def formatTransformationMatrix(t):
+	import numpy as np
+	res = np.float32([
+		[t.item(0),t.item(1),t.item(2)],
+		[t.item(3),t.item(4),t.item(5)]
+	])
+	return res
 
 def getTransformationMatrix(fragmentImageShape):
 	import numpy as np
-	b, c, x_translation, y_translation = prepShapeForCalculationOfTranslationMatrix(fragmentImageShape)
-	area = BSO.getAreaOfTriangle(fragmentImageShape)
-	translationMatrix = np.float32([
-			[1,0,x_translation],
-			[0,1,y_translation],
-			[0,0,1]
-		])
+	newShape = prepShapeForCalculationOfTranslationMatrix(fragmentImageShape)
 
-	t = calcTransformationMat(b, c, area)
-	rotationAndScaleMatrix = np.float32([
-		[t.item(0),t.item(1),0],
-		[t.item(2),t.item(3),0],
-		[0,0,1]
-	])
-	
-	res = np.matmul(rotationAndScaleMatrix,translationMatrix)
-	
-	res = np.float32([
-		[res.item(0),res.item(1),res.item(2)],
-		[res.item(3),res.item(4),res.item(5)]
-	])
+	t = calcTransformationMat(newShape, getTargetTriangle(200, 200*.83))
+	return formatTransformationMatrix(t)	
 
-	return res
+def getTargetTriangle(scale_x, scale_y):
+	return [
+		[0	*scale_x, 0*scale_y],
+		[0.5*scale_x, 1*scale_y],
+		[1	*scale_x, 0*scale_y]
+	]
 
 #Code by Rosca
-#No need to pass in point A because it MUST always be (0,0)
-def calcTransformationMat(pt1, pt2, area):
+#NOTE: first point of each input shape MUST be (0,0)
+def calcTransformationMat(inputShape, targetTriangle):
 	import numpy as np
-	#T       A         B
-	#[a b]   [pt1.x pt2.x]   [0.5 1]
-	#[c d] x [pt1.y pt2.y] = [sin(.7) 0]
+	#target points
+	target_pt1 = targetTriangle[1]
+	target_pt2 = targetTriangle[2]
+	targetPoints = np.float32([
+		[target_pt1[0], target_pt2[0] ,0],
+		[target_pt1[1], target_pt2[1] ,0],
+		[0,0,1]
+	])
+	targetPoints = np.matrix(targetPoints)
 
-	#T*A = B
-	#T*A*A^-1 = B*A^-1
-	#TI = B*A^-1
+	#input points
+	pt_t = inputShape[0]
+	pt1 = inputShape[1]
+	pt1 = [pt1[0] - pt_t[0], pt1[1] - pt_t[1]]
+	pt2 = inputShape[2]
+	pt2 = [pt2[0] - pt_t[0], pt2[1] - pt_t[1]]
 
-	#TODO: fix scaling!
-	areaOfTargetTriangle = 0.418330015
-	#scale = np.sqrt( (area/areaOfTargetTriangle) )
-	scale = 200
-	scaleMat = np.matrix(((scale, 0), (0, scale)))
+	inputPoints = np.float32([
+		[pt1[0], pt2[0], 0],
+		[pt1[1], pt2[1], 0],
+		[0,	0, 1]
+	])
+	inputPoints = np.matrix(inputPoints)
 
-	A = np.matrix(np.concatenate((pt1, pt2), axis=1))
-	B = np.matrix(((0.5, 1), (0.83666003, 0)))#np.sqrt(0.7) == 0.83666003
-	B = scaleMat * B
-	T = B * A.getI()
+	translationMatrix = np.float32([
+		[1,0,-pt_t[0]],
+		[0,1,-pt_t[1]],
+		[0,0,1]
+	])
+	translationMatrix = np.matrix(translationMatrix)
 
-	return T
+	return targetPoints * inputPoints.getI() * translationMatrix
 
 
 def applyTransformationMatrixToFragment(inputImageData, transformationMatrix):
@@ -207,7 +211,6 @@ def normaliseScaleForSingleFrag_withRotation(inputImageData, inputShape, rot):
 	inputShape_new = list(inputShape)
 	inputShape_new = rotate(inputShape_new, rot)
 	transformationMatrix = getTransformationMatrix(inputShape_new)
-
 	scaledImage, scaledShape = applyTransformationMatrixToFragment(inputImageData, transformationMatrix)
 
 	return scaledImage, scaledShape
@@ -217,7 +220,7 @@ def c_styleTransformationMatrixHack(inputImageData, inputShape):
 	ret = []
 	for i in range(3):
 		val_img, val_shape = normaliseScaleForSingleFrag_withRotation(inputImageData, inputShape, i)
-		sd.drawLines(val_shape, val_img)
+		#sd.drawLines(val_shape, val_img)
 		ret.append( FragmentImageData(val_img, val_shape) )
 	return ret
 
@@ -251,15 +254,6 @@ def normaliseFragmentScaleAndRotationAndHash(fragmentObj, hashProvider):
 def finishBuildingFragments(inputFragmentsAndShapes, hashProvider):
 	for fragment in inputFragmentsAndShapes:
 		yield normaliseFragmentScaleAndRotationAndHash(fragment, hashProvider)
-
-
-def getHashForSingleFragment(fragmentImageData):
-	import hashProvider
-	#start = time.time()
-	hash = hashProvider.getHash(fragmentImageData)
-	#end = time.time()
-	##print "getHash: " + str(end - start)
-	return hash
 
 def buildFragmentObjectsWithRange(imgName, imageData, triangles, queue, start=0, end=None):
 	if end == None:

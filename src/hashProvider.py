@@ -6,8 +6,10 @@ def getHash(fragmentImage):
 
 def getHashPlain(fragmentImage):
     from PIL import Image
-    pythonImageObj = Image.fromarray(fragmentImage)
-    return ih.dhash(pythonImageObj)
+    import cv2
+    finImage = cv2.resize(fragmentImage, (8+1, 8))
+    pythonImageObj = Image.fromarray(finImage)
+    return dhash(pythonImageObj, 8 ,fragmentImage)
 
 def strHashToHashObj(strHash):
     return hex_to_hash(strHash)
@@ -30,4 +32,23 @@ def hex_to_hash(hexstr, hash_size=8):
         l.append([v & 2**i > 0 for i in range(8)])
     return ImageHash(numpy.array(l))
 
+
+def dhash(image, hash_size, debug_org_image):
+    import numpy
+    import cv2
+    from imagehash import ImageHash
+    from PIL import Image
+    """
+    Difference Hash computation.
+    following http://www.hackerfactor.com/blog/index.php?/archives/529-Kind-of-Like-That.html
+
+    computes differences horizontally
+    @image must be a PIL instance.
+    """
+    # resize(w, h), but numpy.array((h, w))
+    image = image.convert("L")
     
+    pixels = numpy.array(image.getdata(), dtype=numpy.float).reshape((hash_size, hash_size + 1))
+    # compute differences between columns
+    diff = pixels[:, 1:] > pixels[:, :-1]
+    return ImageHash(diff)

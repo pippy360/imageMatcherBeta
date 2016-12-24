@@ -213,7 +213,7 @@ const std::string readTheName(std::ifstream *file)
 {
     std::string str;
     std::getline(*file, str);
-    printf("file name is: %s\n", str.c_str());
+    // printf("file name is: %s\n", str.c_str());
     return str;
 }
 
@@ -535,7 +535,7 @@ int main(int argc, char* argv[])
     cv::Mat img = cv::imread("../input/img1.jpg");
     auto tris = getTheTris();
     auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
-    auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, 3);
+    auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size());
     for(FragmentHash v: vals)
     {
 	    printf("hash: %s shape: %s\n", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
