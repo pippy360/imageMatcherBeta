@@ -289,7 +289,7 @@ void testHashConversion()
 
 std::vector<Triangle> getTheTris(const char *trisPath){
     std::ifstream file(trisPath);
-    std::string filename = readTheName(&file);
+    //std::string filename = readTheName(&file);
     auto tris = readTheTriangles(&file);
     return tris;
 }

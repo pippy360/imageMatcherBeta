@@ -139,6 +139,7 @@ def getRedisConnection():
 
 
 def organiseMatchedHashesByMatchedImageName(listOfShapesAndTheirMatchedFragments):
+	print listOfShapesAndTheirMatchedFragments
 	ret = {}
 	for searchingImageMatchedFragmentObj in listOfShapesAndTheirMatchedFragments:
 		searchingImageFragmentShape = searchingImageMatchedFragmentObj['searchingImageFragmentShape'] 
@@ -236,12 +237,18 @@ def useTheCCode(fullImagePath):
 	normalisedFragments = parseCOutput(output)
 	#print normalisedFragments
 	#then run the rest of the stuff...
-	for v in normalisedFragments['vals']:
-		print v['hash'] + " : " + v['shape']
-		found = doDirectLookup(v['hash'])
-		if not found == None:
-			print "match found: " + str(found)
-	
+#	for i in range(len(normalisedFragments['vals'])):
+#	for i in range(10):
+#		v = normalisedFragments['vals'][i]
+	ret = []
+	for hash in normalisedFragments['vals']:
+		if not hash == None:
+			ret.append(doDirectLookup(hash))
+
+	temp = organiseMatchedHashesByMatchedImageName(ret)
+	for key in temp.keys():
+		print "matched: " + str(key) + str(len(temp[key])) + " times "
+
 
 ######################################################################################
 
@@ -287,6 +294,7 @@ name8 = "rick4"
 #showMatches(name2, name1)
 #showMatches(name5)
 #showMatches(name4)
+
 #addImageToDB(toFullPath('img1'))
 
 #from KeypointSystem import newGetKeypoints as gk

@@ -264,9 +264,9 @@ def buildFragmentObjectsWithRange(imgName, imageData, triangles, queue, start=0,
 		triangle = triangles[i]
 		incompleteNonNormalisedFragment = buildNonNormalisedFragmentsForSingleTriangle(imgName, imageData, triangle)
 		import hashProvider
-		completeFragentObj = normaliseFragmentScaleAndRotationAndHash(incompleteNonNormalisedFragment, hashProvider)
-		queue.put(completeFragentObj)
-
+		completeFragentObjs = normaliseFragmentScaleAndRotationAndHash(incompleteNonNormalisedFragment, hashProvider)#
+		for v in completeFragentObjs:
+			queue.put(v)
 
 
 def buildFragmentObjects(imgName, imageData, triangles):
