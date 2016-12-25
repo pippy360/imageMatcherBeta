@@ -287,8 +287,8 @@ void testHashConversion()
     std::cout << str << std::endl;
 }
 
-std::vector<Triangle> getTheTris(){
-    std::ifstream file("output.txt");
+std::vector<Triangle> getTheTris(const char *trisPath){
+    std::ifstream file(trisPath);
     std::string filename = readTheName(&file);
     auto tris = readTheTriangles(&file);
     return tris;
@@ -477,19 +477,19 @@ FragmentHash testSpeedWithoutFix_s(const cv::Mat img, Triangle tri)
     return FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
 }
 
-std::vector<FragmentHash> testSpeedWithoutFix()
-{
-    cv::Mat img = cv::imread("../input/rick1.jpg");
-    std::vector<FragmentHash> hashes;
-    auto tris = getTheTris();
-    for(int i = 0; i < 3000; i++)
-    {
-        auto tri = tris[i];
-        auto hash = testSpeedWithoutFix_s(img, tri);
-        hashes.push_back(hash);
-    }
-    return hashes;
-}
+// std::vector<FragmentHash> testSpeedWithoutFix()
+// {
+//     // cv::Mat img = cv::imread("../input/rick1.jpg");
+//     // std::vector<FragmentHash> hashes;
+//     // auto tris = getTheTris();
+//     // for(int i = 0; i < 3000; i++)
+//     // {
+//     //     auto tri = tris[i];
+//     //     auto hash = testSpeedWithoutFix_s(img, tri);
+//     //     hashes.push_back(hash);
+//     // }
+//     // return hashes;
+// }
 
 FragmentHash testSpeedWithoutFix2_s(const cv::Mat img, Triangle tri)
 {
@@ -513,33 +513,48 @@ FragmentHash testSpeedWithoutFix2_s(const cv::Mat img, Triangle tri)
     return FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
 }
 
-std::vector<FragmentHash> testSpeedWithoutFix2()
-{
-    cv::Mat img = cv::imread("../input/rick1.jpg");
-    std::vector<FragmentHash> hashes;
-    auto tris = getTheTris();
-    for(int i = 0; i < 3000; i++)
-    {
-        auto tri = tris[i];
-        auto hash = testSpeedWithoutFix2_s(img, tri);
-        hashes.push_back(hash);
-    }
-    return hashes;
-}
+// std::vector<FragmentHash> testSpeedWithoutFix2()
+// {
+//     // cv::Mat img = cv::imread("../input/rick1.jpg");
+//     // std::vector<FragmentHash> hashes;
+//     // auto tris = getTheTris();
+//     // for(int i = 0; i < 3000; i++)
+//     // {
+//     //     auto tri = tris[i];
+//     //     auto hash = testSpeedWithoutFix2_s(img, tri);
+//     //     hashes.push_back(hash);
+//     // }
+//     // return hashes;
+// }
 
 
 int main(int argc, char* argv[])
 {
 
     //auto vals = testSpeedWithoutFix2();
-    cv::Mat img = cv::imread("../input/img1.jpg");
-    auto tris = getTheTris();
+    if (argc != 3){
+        return -1;
+    }
+
+    cv::Mat img = cv::imread(argv[1]);
+    auto tris = getTheTris(argv[2]);
     auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
     auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size());
-    for(FragmentHash v: vals)
+
+    printf("{\"vals\": [");
+    // for(FragmentHash v: vals)
+    // {
+    for(int i = 0; i< vals.size(); i++)
     {
-	    printf("hash: %s shape: %s\n", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
+        auto v = vals[i];
+	    printf("{ \"hash\": \"%s\", \"shape\": \"%s\"}", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
+        if (i != vals.size()-1)
+        {
+            printf(",");
+        }
     }
+    printf("]}");
+    
 
     // std::ifstream file("output.txt");
     // std::string filename = readTheName(&file);

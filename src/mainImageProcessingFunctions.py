@@ -341,6 +341,22 @@ def dumpTheInfoForTheCplusplus(shapeAndPositionInvariantImage):
 			print int(pt[1])
 
 
+def dumpTheInfoForTheCplusplus_ToFile(shapeAndPositionInvariantImage, filename):
+	imageData = shapeAndPositionInvariantImage.imageData	
+	#get the keyPoints
+	keyPoints = getTheKeyPoints(imageData)
+	f = open(filename,'w+')
+	
+	#turn the keyPoints into triangles	
+	triangles = getTheTriangles(keyPoints)
+	print "####starting####"
+	print shapeAndPositionInvariantImage.imageFullPathOrName
+	for tri in triangles:
+		for pt in tri:
+			f.write( str(int(pt[0])) + '\n' )
+			f.write( str(int(pt[1])) + '\n' )
+
+
 def buildImageFragmentsMapByHash(shapeAndPositionInvariantImage):
 	frags, size = getAllTheHashesForImage(shapeAndPositionInvariantImage)
 	ret = {}

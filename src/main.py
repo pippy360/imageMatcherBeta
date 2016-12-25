@@ -14,6 +14,7 @@ import jsonHandling as jh
 import os
 import mainImageProcessingFunctions as nm
 from ShapeAndPositionInvariantImage import ShapeAndPositionInvariantImage
+import commands
 
 isDebug = False
 
@@ -39,18 +40,19 @@ def addImageToDB(fullImagePath):
 
 	#print numberOfFragments 
 	count = 0
-	for fragment in values:    
-		inputImageFragmentHash = fragment.fragmentHash
-		inputImageFragmentShape = fragment.fragmentImageCoords
+	for fragmentL in values:    
+		for fragment in fragmentL:
+			inputImageFragmentHash = fragment.fragmentHash
+			inputImageFragmentShape = fragment.fragmentImageCoords
 
-		#DEBUG_PRINT
-		#print inputImageFragmentHash
-		#print inputImageFragmentShape
-		#\DEBUG_PRINT
+			#DEBUG_PRINT
+			#print inputImageFragmentHash
+			#print inputImageFragmentShape
+			#\DEBUG_PRINT
 
-		r.lpush(inputImageFragmentHash, jh.getTheJsonString(imageObj.imageName, inputImageFragmentHash, 10, inputImageFragmentShape) )
-		count += 1
-		#print "finished fragment: " + str(count) + "/" + str(numberOfFragments) + ' - ' + str(inputImageFragmentHash)
+			r.lpush(inputImageFragmentHash, jh.getTheJsonString(imageObj.imageName, inputImageFragmentHash, 10, inputImageFragmentShape) )
+			count += 1
+			#print "finished fragment: " + str(count) + "/" + str(numberOfFragments) + ' - ' + str(inputImageFragmentHash)
 
 	print "added: "+ str(count) +" fragments to DB"
 
@@ -216,6 +218,30 @@ def process10Triangles(fullImagePath):
 			fixedShape.append([int(pt[0]), int(pt[1])])
 		print "hash: " + str(obj.fragmentHash) + " shape: " + str(fixedShape)
 
+def parseCOutput(output):
+	import json
+	from StringIO import StringIO
+	io = StringIO(output[1])
+	return json.load(io)
+
+def useTheCCode(fullImagePath):
+	img = buildImage(fullImagePath)
+	
+	#now save to a file...
+	outputFile = './triangle_coords_output.txt'
+	nm.dumpTheInfoForTheCplusplus_ToFile(img, outputFile)
+
+	#then run the program
+	output = commands.getstatusoutput('../src_c/app '+ fullImagePath +' ' + outputFile)
+	normalisedFragments = parseCOutput(output)
+	#print normalisedFragments
+	#then run the rest of the stuff...
+	for v in normalisedFragments['vals']:
+		print v['hash'] + " : " + v['shape']
+		found = doDirectLookup(v['hash'])
+		if not found == None:
+			print "match found: " + str(found)
+	
 
 ######################################################################################
 
@@ -271,8 +297,10 @@ name8 = "rick4"
 #cv2.waitKey()
 #addImageToDB(toFullPath('small_lenna1'))
 #showMatches(toFullPath(name4))
-process10Triangles(toFullPath('img1'))
-	
+#process10Triangles(toFullPath('img1'))
+
+useTheCCode(toFullPath('img1'))
+
 #showMatches("lennaWithGreenDotsInTriangle2", "lennaWithGreenDotsInTriangle3")
 
 #showMatches("costanza_orginal_dots", "lennaWithGreenDotsInTriangle3")
