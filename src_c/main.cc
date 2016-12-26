@@ -544,11 +544,12 @@ int main(int argc, char* argv[])
     printf("{\"vals\": [");
     // for(FragmentHash v: vals)
     // {
-    for(int i = 0; i< vals.size(); i++)
+    int end = vals.size();
+    for(int i = 0; i< end; i++)
     {
         auto v = vals[i];
 	    printf("{ \"hash\": \"%s\", \"shape\": \"%s\"}", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
-        if (i != vals.size()-1)
+        if (i != end-1)
         {
             printf(",");
         }

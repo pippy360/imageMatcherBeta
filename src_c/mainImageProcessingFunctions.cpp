@@ -182,7 +182,7 @@ const std::vector<Keypoint> prepShapeForCalcOfTransformationMatrix(const std::ve
 
 	auto ret = std::vector<Keypoint>();
 	ret.push_back(pt1);
-    if( atan2(pt2_t.y, pt2_t.x) < atan2(pt3_t.y, pt3_t.x) ){
+    if( isToTheLeftOf(pt2_t, pt3_t) ){
 		ret.push_back(pt2);
 		ret.push_back(pt3);
 	} else {
@@ -239,6 +239,13 @@ Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>
 {
 	auto newShape = prepShapeForCalcOfTransformationMatrixWithShift(inputTriangle, targetTriangle, shift);
 
+	//DEBUG
+	// auto k1 = newShape[0];
+	// auto k2 = newShape[1];
+	// auto k3 = newShape[2];
+    // std::cout << "the shape after shift [" << "[" << k1.x << ", " << k1.y << "], " << "[" << k2.x << ", " << k2.y << "], " << "[" << k3.x << ", " << k3.y << "]]" << std::endl;
+	//DEBUG
+
 	return calcTransformationMatrix(newShape, targetTriangle);
 }
 
@@ -249,10 +256,10 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 	for (int i = 0; i < NUM_OF_ROTATIONS; i++)
 	{	
 		auto transformationMatrix = calcTransformationMatrixWithShapePreperation(shape, getTargetTriangle(200, 200*.83), i);
-
+		// std::cout << "transformationMatrix:\n" << transformationMatrix << std::endl;
 		auto input_img = fragment.getImageData();
 		//DEBUG
-		// drawLines(input_img, shape);
+		//drawLines(input_img, shape);
 		//DEBUG
 		auto newImageData = applyTransformationMatrixToImage(input_img, transformationMatrix);
 		auto t = ShapeAndPositionInvariantImage(fragment.getImageName(), newImageData, shape, fragment.getImageFullPath());
@@ -260,8 +267,8 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 		auto hash_b = dHashSlowWithResizeAndGrayscale(newImageData);
 		auto hash = FragmentHash(hash_b, shape);
 		// printf("hash: %s shape: %s\n", convertHashToString(hash).c_str(), getShapeStr(hash.getShape()).c_str());
-		// imshow("fragmentAfterTransformation", newImageData);
-		// waitKey(0);
+		imshow("fragmentAfterTransformation", newImageData);
+		waitKey();
 		//DEBUG
 		ret.push_back(t);
 	}

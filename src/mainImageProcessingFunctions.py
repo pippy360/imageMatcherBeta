@@ -90,6 +90,10 @@ def arrangePointsForTransformation(movedTri):
 	ret[0] = temp_pt
 	#TODO: this might not be needed
 
+#return: is pt1 to the left of pt2
+def isToTheLeftOf(pt1, pt2):
+	return ((0 - pt1[0])*(pt2[1] - pt1[1]) - (0 - pt1[1])*(pt2[0] - pt1[0])) > 0
+
 def prepShapeForCalculationOfTranslationMatrix(fragmentImageShape):
 	#get the point closest to zero
 	from utils import basicShapeOperations as BSO
@@ -101,10 +105,7 @@ def prepShapeForCalculationOfTranslationMatrix(fragmentImageShape):
 	pt1 = (tri[1][0] - x_trans, tri[1][1] - y_trans)
 	pt2 = (tri[2][0] - x_trans, tri[2][1] - y_trans)
 
-	import math
-	t1 = math.atan2(pt1[1], pt1[0])
-	t2 = math.atan2(pt2[1], pt2[0])
-	if t1 < t2:
+	if isToTheLeftOf(pt1, pt2):
 		return [fragmentImageShape[0], fragmentImageShape[1], fragmentImageShape[2]] 
 	else:
 		return [fragmentImageShape[0], fragmentImageShape[2], fragmentImageShape[1]]
@@ -219,7 +220,10 @@ def c_styleTransformationMatrixHack(inputImageData, inputShape):
 	import shapeDrawerWithDebug as sd
 	ret = []
 	for i in range(3):
+		#cv2.imshow("img1", inputImageData)
 		val_img, val_shape = normaliseScaleForSingleFrag_withRotation(inputImageData, inputShape, i)
+		#cv2.imshow("img2", val_img)
+		#cv2.waitKey()
 		#sd.drawLines(val_shape, val_img)
 		ret.append( FragmentImageData(val_img, val_shape) )
 	return ret
@@ -256,6 +260,8 @@ def finishBuildingFragments(inputFragmentsAndShapes, hashProvider):
 		yield normaliseFragmentScaleAndRotationAndHash(fragment, hashProvider)
 
 def buildFragmentObjectsWithRange(imgName, imageData, triangles, queue, start=0, end=None):
+	import hashProvider
+	import shapeDrawerWithDebug as sd
 	if end == None:
 		end = len(triangles)
 
@@ -263,8 +269,8 @@ def buildFragmentObjectsWithRange(imgName, imageData, triangles, queue, start=0,
 	for i in xrange(start, end):
 		triangle = triangles[i]
 		incompleteNonNormalisedFragment = buildNonNormalisedFragmentsForSingleTriangle(imgName, imageData, triangle)
-		import hashProvider
-		completeFragentObjs = normaliseFragmentScaleAndRotationAndHash(incompleteNonNormalisedFragment, hashProvider)#
+
+		completeFragentObjs = normaliseFragmentScaleAndRotationAndHash(incompleteNonNormalisedFragment, hashProvider)
 		for v in completeFragentObjs:
 			queue.put(v)
 
@@ -295,13 +301,13 @@ def buildFragmentObjectsWithRangeThreaded(imageName, imageData, triangles):
 		t = Thread(target=buildFragmentObjectsWithRange, args=(imageName, imageData, triangles, q, start, end))
 		threadList.append(t)
 		t.start()
-	print "created " + str(num_of_threads) + " threads..."
+	#print "created " + str(num_of_threads) + " threads..."
 	for t in threadList:
 		t.join()
-	print '...finished thread work'
+	#print '...finished thread work'
 	#do the rest
 	start = jump*num_of_threads
-	print "dealing with the rest: " + str(len(triangles)-start)
+	#print "dealing with the rest: " + str(len(triangles)-start)
 	buildFragmentObjectsWithRange(imageName, imageData, triangles, q, start)
 	ret = []
 	while not q.empty():
@@ -349,8 +355,14 @@ def dumpTheInfoForTheCplusplus_ToFile(shapeAndPositionInvariantImage, filename):
 	
 	#turn the keyPoints into triangles	
 	triangles = getTheTriangles(keyPoints)
-	print "####starting####"
-	print shapeAndPositionInvariantImage.imageFullPathOrName
+
+	for tri in triangles:
+		for pt in tri:
+			f.write( str(int(pt[0])) + '\n' )
+			f.write( str(int(pt[1])) + '\n' )
+
+def dumpTriangles(triangles, filename):
+	f = open(filename,'w+')
 	for tri in triangles:
 		for pt in tri:
 			f.write( str(int(pt[0])) + '\n' )

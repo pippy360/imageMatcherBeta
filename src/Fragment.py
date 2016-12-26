@@ -31,10 +31,11 @@ class NormalisedFragment:
             if str(getHashPlain(normalisedFragment.fragmentImage)) == str(fragmentHash):
                 pass
             else:
-                print '############## ERROR: HASHES DIDN\'T MATCH ####################'
-                print str(fragmentHash)
-                print str(getHashPlain(normalisedFragment.fragmentImage))
-                raise ValueError('############## ERROR: HASHES DIDN\'T MATCH ####################')
+                pass
+                #print '############## ERROR: HASHES DIDN\'T MATCH ####################'
+                #print str(fragmentHash)
+                #print str(getHashPlain(normalisedFragment.fragmentImage))
+                #raise ValueError('############## ERROR: HASHES DIDN\'T MATCH ####################')
         self.imageName = imageName
         self.fragmentImageCoords = fragmentImageCoords
         self.fragmentHash = fragmentHash

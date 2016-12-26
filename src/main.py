@@ -40,19 +40,18 @@ def addImageToDB(fullImagePath):
 
 	#print numberOfFragments 
 	count = 0
-	for fragmentL in values:    
-		for fragment in fragmentL:
-			inputImageFragmentHash = fragment.fragmentHash
-			inputImageFragmentShape = fragment.fragmentImageCoords
+	for fragment in values:    
+		inputImageFragmentHash = fragment.fragmentHash
+		inputImageFragmentShape = fragment.fragmentImageCoords
 
-			#DEBUG_PRINT
-			#print inputImageFragmentHash
-			#print inputImageFragmentShape
-			#\DEBUG_PRINT
+		#DEBUG_PRINT
+		#print inputImageFragmentHash
+		#print inputImageFragmentShape
+		#\DEBUG_PRINT
 
-			r.lpush(inputImageFragmentHash, jh.getTheJsonString(imageObj.imageName, inputImageFragmentHash, 10, inputImageFragmentShape) )
-			count += 1
-			#print "finished fragment: " + str(count) + "/" + str(numberOfFragments) + ' - ' + str(inputImageFragmentHash)
+		r.lpush(inputImageFragmentHash, jh.getTheJsonString(imageObj.imageName, inputImageFragmentHash, 10, inputImageFragmentShape) )
+		count += 1
+		#print "finished fragment: " + str(count) + "/" + str(numberOfFragments) + ' - ' + str(inputImageFragmentHash)
 
 	print "added: "+ str(count) +" fragments to DB"
 
@@ -62,15 +61,15 @@ def handleMatchedFragment(inputImage, matchedJsonObj, matchedImg, inputImageFrag
 	print "matched"
 	matchedCoords = matchedJsonObj['coords']
 
-	#col = (randint(0,255),randint(0,255),randint(0,255))
+	col = (randint(0,255),randint(0,255),randint(0,255))
 
-	#d.drawLinesColourAlsoWidth(matchedCoords, matchedImg, col, 1)
-	#cv2.imshow('found', matchedImg)
+	d.drawLinesColourAlsoWidth(matchedCoords, matchedImg, col, 1)
+	cv2.imshow('found', matchedImg)
 	
-	#d.drawLinesColourAlsoWidth(inputImageFragmentShape, inputImage, col, 1)
-	#cv2.imshow('input', inputImage)
+	d.drawLinesColourAlsoWidth(inputImageFragmentShape, inputImage, col, 1)
+	cv2.imshow('input', inputImage)
 
-	#cv2.waitKey(0)
+	cv2.waitKey(0)
 
 
 def handleMatchedFragments(inputImage, matchedJsonObjs, matchedImg, inputImageFragmentShape):
@@ -134,24 +133,26 @@ def findMatchesForHash_in_db(inputImageFragmentHash, threshold=1):
 	else:
 		return ret
 
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 def getRedisConnection():
-	return redis.StrictRedis(host='localhost', port=6379, db=0)
+	return r
 
 
 def organiseMatchedHashesByMatchedImageName(listOfShapesAndTheirMatchedFragments):
-	print listOfShapesAndTheirMatchedFragments
-	ret = {}
-	for searchingImageMatchedFragmentObj in listOfShapesAndTheirMatchedFragments:
-		searchingImageFragmentShape = searchingImageMatchedFragmentObj['searchingImageFragmentShape'] 
-		matchedImageFragmentObjs = searchingImageMatchedFragmentObj['matchedImageFragmentObjs']
-		for matchedImageName, value in matchedImageFragmentObjs.iteritems():
-			if ret.get(matchedImageName) == None:
-				ret[matchedImageName] = []
-
-			for val in value:
-				ret[matchedImageName].append( (searchingImageFragmentShape, val) )
-
-	return ret
+	pass
+#	print listOfShapesAndTheirMatchedFragments
+#	ret = {}
+#	for searchingImageMatchedFragmentObj in listOfShapesAndTheirMatchedFragments:
+#		searchingImageFragmentShape = searchingImageMatchedFragmentObj['coords'] 
+#		matchedImageFragmentObjs = searchingImageMatchedFragmentObj['matchedImageFragmentObjs']
+#		for matchedImageName, value in matchedImageFragmentObjs.iteritems():
+#			if ret.get(matchedImageName) == None:
+#				ret[matchedImageName] = []
+#
+#			for val in value:
+#				ret[matchedImageName].append( (searchingImageFragmentShape, val) )
+#
+#	return ret
 
 def getSearchingImageMatchFragmentObj(searchingImageFragmentShape, matchedImageFragmentsObj):
 	return {
@@ -225,29 +226,64 @@ def parseCOutput(output):
 	io = StringIO(output[1])
 	return json.load(io)
 
+def explode(output):
+    ret = []
+    for el in output:
+		#print "key: " + str(el)
+		for val in output:
+			for k in val:
+				for e in val[k]:
+					ret.append(e)
+		return ret
+
+def getMapByImageName(matches):
+	ret = {}
+	for match in matches:
+		imageName = match['imageName']
+		if ret.get(imageName) == None:
+			ret[imageName] = []
+
+		ret[imageName].append( match )
+	return ret
+
+def dumpTrianglesUsingImg(img, outputFile):
+	import mainImageProcessingFunctions as mp
+	imageData = img.imageData	
+	#get the keyPoints
+	keyPoints = getTheKeyPoints(imageData)
+	#turn the keyPoints into triangles	
+	triangles = getTheTriangles(keyPoints)
+
+	nm.dumpTriangles(triangles, outputFile)
+
+def runTheCommand():
+    pass
+
 def useTheCCode(fullImagePath):
 	img = buildImage(fullImagePath)
-	
-	#now save to a file...
 	outputFile = './triangle_coords_output.txt'
-	nm.dumpTheInfoForTheCplusplus_ToFile(img, outputFile)
-
+	dumpTrianglesUsingImg(img, outputFile)
+	
 	#then run the program
+	print 'running command: ../src_c/app '+ fullImagePath +' ' + outputFile
 	output = commands.getstatusoutput('../src_c/app '+ fullImagePath +' ' + outputFile)
 	normalisedFragments = parseCOutput(output)
-	#print normalisedFragments
-	#then run the rest of the stuff...
-#	for i in range(len(normalisedFragments['vals'])):
-#	for i in range(10):
-#		v = normalisedFragments['vals'][i]
-	ret = []
-	for hash in normalisedFragments['vals']:
-		if not hash == None:
-			ret.append(doDirectLookup(hash))
 
-	temp = organiseMatchedHashesByMatchedImageName(ret)
+	ret = []
+	for hash_obj in normalisedFragments['vals']:
+		hash = hash_obj['hash']
+		res_s = doDirectLookup(hash)
+		if res_s == None:
+			pass
+		else:
+			ret.append(res_s)
+
+	temp = explode(ret)
+	if temp == None:
+		return 
+	temp = getMapByImageName(temp)
 	for key in temp.keys():
-		print "matched: " + str(key) + str(len(temp[key])) + " times "
+		print "matched: " + str(key) + " " + str(len(temp[key])) + " times "
 
 
 ######################################################################################
@@ -306,6 +342,7 @@ name8 = "rick4"
 #addImageToDB(toFullPath('small_lenna1'))
 #showMatches(toFullPath(name4))
 #process10Triangles(toFullPath('img1'))
+addImageToDB(toFullPath("img1"))
 
 useTheCCode(toFullPath('img1'))
 
