@@ -250,9 +250,9 @@ def dumpTrianglesUsingImg(img, outputFile):
 	import mainImageProcessingFunctions as mp
 	imageData = img.imageData	
 	#get the keyPoints
-	keyPoints = getTheKeyPoints(imageData)
+	keyPoints = mp.getTheKeyPoints(imageData)
 	#turn the keyPoints into triangles	
-	triangles = getTheTriangles(keyPoints)
+	triangles = mp.getTheTriangles(keyPoints)
 
 	nm.dumpTriangles(triangles, outputFile)
 
