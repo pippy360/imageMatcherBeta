@@ -132,7 +132,7 @@ double BlockMeanHash::compare(cv::InputArray hashOne,
 
 Ptr<BlockMeanHash> BlockMeanHash::create(size_t mode)
 {
-    return makePtr<BlockMeanHash>(mode);
+    return new BlockMeanHash(mode);
 }
 
 String BlockMeanHash::getDefaultName() const

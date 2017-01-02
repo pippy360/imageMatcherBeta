@@ -44,7 +44,7 @@
 
 #include "img_hash_base.hpp"
 #include "average_hash.hpp"
-// #include "opencv2/img_hash/block_mean_hash.hpp"
+#include "block_mean_hash.hpp"
 // #include "opencv2/img_hash/color_moment_hash.hpp"
 // #include "opencv2/img_hash/marr_hildreth_hash.hpp"
 // #include "opencv2/img_hash/phash.hpp"

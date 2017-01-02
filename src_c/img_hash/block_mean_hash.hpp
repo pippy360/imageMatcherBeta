@@ -42,7 +42,7 @@
 #ifndef __OPENCV_BLOCK_MEAN_HASH_HPP__
 #define __OPENCV_BLOCK_MEAN_HASH_HPP__
 
-#include "opencv2/core.hpp"
+#include <opencv2/opencv.hpp>
 
 namespace cv
 {

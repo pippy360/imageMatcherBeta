@@ -514,7 +514,7 @@ FragmentHash testSpeedWithoutFix2_s(const cv::Mat img, Triangle tri)
     return FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
 }
 
-std::vector<FragmentHash> findNearestneighbour_slow(FragmentHash targetHash, std::vector<FragmentHash> hashList, int threshold=10)
+std::vector<FragmentHash> findNearestneighbour_slow(FragmentHash targetHash, std::vector<FragmentHash> hashList, int threshold=3)
 {
     std::vector<FragmentHash> ret;
     for(auto tempHash : hashList)
