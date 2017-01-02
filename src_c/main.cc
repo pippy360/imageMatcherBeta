@@ -9,6 +9,7 @@
 #include "Triangle.h"
 #include "mainImageProcessingFunctions.cpp"
 #include <iostream>
+#include "hiredis/hiredis.h"
 
 void toTheLeftOfTest()
 {
@@ -513,6 +514,34 @@ FragmentHash testSpeedWithoutFix2_s(const cv::Mat img, Triangle tri)
     return FragmentHash(cv::dHashSlowWithResizeAndGrayscale(resized_input_mat));
 }
 
+std::vector<FragmentHash> findNearestneighbour_slow(FragmentHash targetHash, std::vector<FragmentHash> hashList, int threshold=10)
+{
+    std::vector<FragmentHash> ret;
+    for(auto tempHash : hashList)
+    {
+        int dist = cv::getHashDistance(targetHash, tempHash);
+        if (dist <= threshold)
+        {
+            ret.push_back(tempHash);
+        }
+    }
+    return ret;
+}
+
+std::vector<FragmentHash> getTheHashesFromRedisReply(redisReply *reply)
+{
+    std::vector<FragmentHash> ret;
+    if (reply->type == REDIS_REPLY_ARRAY) {
+        int j;
+        for (j = 0; j < reply->elements; j++) {
+            auto hash = cv::hex_str_to_hash(reply->element[j]->str);
+            ret.push_back(hash);
+        }
+    }
+    return ret;
+}
+
+
 // std::vector<FragmentHash> testSpeedWithoutFix2()
 // {
 //     // cv::Mat img = cv::imread("../input/rick1.jpg");
@@ -528,76 +557,235 @@ FragmentHash testSpeedWithoutFix2_s(const cv::Mat img, Triangle tri)
 // }
 
 
+
+
 int main(int argc, char* argv[])
 {
 
+    unsigned int j;
+    redisContext *c;
+    redisReply *reply;
+    const char *hostname = "127.0.0.1";
+    int port = 6379;
+
+    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+    c = redisConnectWithTimeout(hostname, port, timeout);
+    if (c == NULL || c->err) {
+        if (c) {
+            printf("Connection error: %s\n", c->errstr);
+            redisFree(c);
+        } else {
+            printf("Connection error: can't allocate redis context\n");
+        }
+        exit(1);
+    }
+
     //auto vals = testSpeedWithoutFix2();
-    if (argc != 3){
+    if (argc == 1){
+        printf("error: no args!!!\n");
         return -1;
     }
 
-    cv::Mat img = cv::imread(argv[1]);
-    auto tris = getTheTris(argv[2]);
-    auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
-    auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size());
-
-    printf("{\"vals\": [");
-    // for(FragmentHash v: vals)
-    // {
-    int end = vals.size();
-    for(int i = 0; i< end; i++)
-    {
-        auto v = vals[i];
-	    printf("{ \"hash\": \"%s\", \"shape\": \"%s\"}", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
-        if (i != end-1)
-        {
-            printf(",");
-        }
-    }
-    printf("]}");
     
+    std::string imageName = (argc > 2)? argv[2]: "img1";
+    std::string imageFullPath =  "../inputImages/"+ imageName + "/" + imageName + ".jpg";
+    std::string imagePoints =  "../inputImages/"+ imageName + "/keypoints.txt";
 
-    // std::ifstream file("output.txt");
-    // std::string filename = readTheName(&file);
-    // auto tris = readTheTriangles(&file);
 
-	// for (int i = 0; i < 10; i++)
-	// {
-	// 	//printf("new tri\n");
-	// 	auto tri = tris[i];
-	// 	auto k = tri.toKeypoints();
-	// 	//printf("keypoint size: %d\n", k.size());
-	// 	for (auto s : k)
-	// 	{
-	// 		//printf("(%.2lf, %.2lf)\n", s.x, s.y);
-	// 	}
-	// }
+    if (argc > 1 && strcmp(argv[1], "add") == 0){
+        printf("add detected\n");
+        cv::Mat img = cv::imread(imageFullPath);
+        auto tris = getTheTris(imagePoints.c_str());
+        auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
+        auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size());
+        for(FragmentHash v: vals){
+            auto hash = cv::convertHashToString(v);
+            //std::cout << hash.c_str() << std::endl;
+            reply = (redisReply *) redisCommand(c,"SET %s %s", hash.c_str(), imageFullPath.c_str());
+            printf("SET: %s\n", reply->str);
+        }
+    } else if (argc > 1 && strcmp(argv[1], "test") == 0){
+        printf("running test\n");
+        cv::Mat img1 = cv::imread("../input/img1.jpg");
+        cv::Mat img2 = cv::imread("../input/img2.jpg");
+        auto tris1 = getTheTris("../src/tri1.txt");
+        auto tris2 = getTheTris("../src/tri2.txt");
+        auto img1_s = ShapeAndPositionInvariantImage("", img1, std::vector<Keypoint>(), "");
+        auto img2_s = ShapeAndPositionInvariantImage("", img2, std::vector<Keypoint>(), "");
+        auto vals1 = cv::getAllTheHashesForImage_debug(img1_s, tris1, tris1.size());
+        auto vals2 = cv::getAllTheHashesForImage_debug(img2_s, tris2, tris2.size());
 
-    // cv::Mat img = cv::imread("../input/rick1.jpg");
-    // std::vector<Keypoint> g;
-	// auto temp = ShapeAndPositionInvariantImage("small_lenna3", img, g, "");
-	// auto k = cv::getAllTheHashesForImage(temp, tris);
+        // reply = (redisReply *) redisCommand(c,"Keys *");
+        // std::vector<FragmentHash> hashList = getTheHashesFromRedisReply(reply);
+        // for (auto t_hash: hashList)
+        // {
+        //     printf("hash: %s\n", cv::convertHashToString(t_hash).c_str());
+        // }
 
-    // printf("size: %d\n", k.size());
-	// for(auto o: k){
-    //     std::cout << cv::convertHashToString(o) << std::endl;
-    // }
+        std::vector<FragmentHash> hashList  = vals2;
+        
+        int idx = 0;
+        for(int i = 0; idx < vals1.size(); i++, idx = i + (6*(i/3))){
 
-    // for(auto tri: tris)
-    // {
-	// 	/*
-    //     printf("[(%.0lf, %.0lf), ", tri.keypoints_[0].x, tri.keypoints_[0].y);
-    //     printf("(%.0lf, %.0lf), ", tri.keypoints_[1].x, tri.keypoints_[1].y);
-    //     printf("(%.0lf, %.0lf)]\n", tri.keypoints_[2].x, tri.keypoints_[2].y);
-	// 	 */
-    // }
-    // printf("done\n");
-    /*
-	cv::Mat img = cv::imread("../../small_lenna3.jpg");
-	auto shape = getShapeFromImage(img);
-	auto tris = cv::readTheTriangles();
-	cv::imshow("here", img);
-	// cv::waitKey();
-    */
+            auto v1 = vals1[idx];
+            auto shape1 = v1.getShape();
+            auto hash1 = cv::convertHashToString(v1);
+            cv::drawLines(img1, shape1);
+
+            auto vals2_ret = findNearestneighbour_slow(v1, hashList);
+            if (vals2_ret.size() > 0)
+            {
+                for(int j = 0; j < vals2_ret.size(); j++){
+                    auto v2 = vals2_ret[j];
+                    auto whatV2shouldHaveBeen = vals2[i];
+                    auto shape2 = v2.getShape();
+                    auto hash2 = cv::convertHashToString(v2);
+                    // cv::drawLines(img2, shape2);
+                    cv::Mat hash1img = cv::imread("../output/"+hash1+".jpg");
+                    cv::Mat hash2img = cv::imread("../output/"+hash2+".jpg");
+
+                    cv::imshow("img1", hash1img);
+                    cv::imshow("img2", hash2img);
+                    cv::waitKey();
+
+                    std::cout << "Matches: " << vals2_ret.size() <<  "\t distance: " << cv::getHashDistance(v1, v2) << "\t from: " << hash1.c_str() << " : " << hash2.c_str() << std::endl;
+                }
+            }else{
+                printf("no match\n");
+            }
+        }        
+    } else if (argc > 1 && strcmp(argv[1], "compare") == 0){
+        printf("running compare.....\n");
+        cv::Mat img1 = cv::imread(imageFullPath);
+        auto tris1 = getTheTris(imagePoints.c_str());
+
+        std::string imageName2 = (argc > 3)? argv[3]: "img2";
+        std::string imageFullPath2 =  "../inputImages/"+ imageName2 + "/" + imageName2 + ".jpg";
+        std::string imagePoints2 =  "../inputImages/"+ imageName2 + "/keypoints.txt";
+        cv::Mat img2 = cv::imread(imageFullPath2);
+        auto tris2 = getTheTris(imagePoints2.c_str());
+
+        auto img1_s = ShapeAndPositionInvariantImage("", img1, std::vector<Keypoint>(), "");
+        auto img2_s = ShapeAndPositionInvariantImage("", img2, std::vector<Keypoint>(), "");
+        auto vals1 = cv::getAllTheHashesForImage_debug(img1_s, tris1, tris1.size());
+        auto vals2 = cv::getAllTheHashesForImage_debug(img2_s, tris2, tris2.size());
+
+        //findNearestneighbour_slow();
+        int idx = 0;
+        std::vector<FragmentHash> hashList  = vals2;        
+        for(int i = 0; idx < vals1.size(); i++, idx = i + (6*(i/3))){
+
+            auto v1 = vals1[idx];
+            auto shape1 = v1.getShape();
+            auto hash1 = cv::convertHashToString(v1);
+            cv::drawLines(img1, shape1);
+
+            auto vals2_ret = findNearestneighbour_slow(v1, hashList);
+            if (vals2_ret.size() > 0)
+            {
+                for(int j = 0; j < vals2_ret.size(); j++){
+                    auto v2 = vals2_ret[j];
+                    auto whatV2shouldHaveBeen = vals2[i];
+                    auto shape2 = v2.getShape();
+                    auto hash2 = cv::convertHashToString(v2);
+                    // cv::drawLines(img2, shape2);
+                    cv::Mat hash1img = cv::imread("../output/"+hash1+".jpg");
+                    cv::Mat hash2img = cv::imread("../output/"+hash2+".jpg");
+
+                    cv::imshow("img1", hash1img);
+                    cv::imshow("img2", hash2img);
+                    cv::waitKey();
+
+                    std::cout << "Matches: " << vals2_ret.size() <<  "\t distance: " << cv::getHashDistance(v1, v2) << "\t from: " << hash1.c_str() << " : " << hash2.c_str() << std::endl;
+                }
+            }else{
+                printf("no match\n");
+            }
+        }   
+    } else if (argc > 1 && strcmp(argv[1], "comp_hard") == 0){
+        printf("running hard coded compare...\n");
+        cv::Mat img1 = cv::imread("../input/img1.jpg");
+        cv::Mat img2 = cv::imread("../input/img2.jpg");
+        auto tris1 = getTheTris("../src/tri1.txt");
+        auto tris2 = getTheTris("../src/tri2.txt");
+        auto img1_s = ShapeAndPositionInvariantImage("", img1, std::vector<Keypoint>(), "");
+        auto img2_s = ShapeAndPositionInvariantImage("", img2, std::vector<Keypoint>(), "");
+        auto vals1 = cv::getAllTheHashesForImage_debug(img1_s, tris1, tris1.size());
+        auto vals2 = cv::getAllTheHashesForImage_debug(img2_s, tris2, tris2.size());
+
+        // reply = (redisReply *) redisCommand(c,"Keys *");
+        // std::vector<FragmentHash> hashList = getTheHashesFromRedisReply(reply);
+        // for (auto t_hash: hashList)
+        // {
+        //     printf("hash: %s\n", cv::convertHashToString(t_hash).c_str());
+        // }
+
+        std::vector<FragmentHash> hashList  = vals2;
+        
+        int idx = 0;
+        for(int i = 0; idx < vals1.size(); i++, idx = i + (6*(i/3))){
+
+            auto v1 = vals1[idx];
+            auto shape1 = v1.getShape();
+            auto hash1 = cv::convertHashToString(v1);
+            cv::drawLines(img1, shape1);
+
+            auto v2 = vals2[idx];
+            auto shape2 = v2.getShape();
+            auto hash2 = cv::convertHashToString(v2);
+            cv::drawLines(img2, shape2);
+            
+            cv::Mat hash1img = cv::imread("../output/"+hash1+".jpg");
+            cv::Mat hash2img = cv::imread("../output/"+hash2+".jpg");
+
+            cv::imshow("img1", hash1img);
+            cv::imshow("img2", hash2img);
+            cv::waitKey();
+
+            std::cout << "Distance: " << cv::getHashDistance(v1, v2) << "\t from: " << hash1.c_str() << " : " << hash2.c_str() << std::endl;
+        }      
+    } else if (argc > 1 && strcmp(argv[1], "lookup") == 0){
+        printf("lookup detected\n");
+        cv::Mat img = cv::imread(imageFullPath);
+        auto tris = getTheTris(imagePoints.c_str());
+        auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
+        auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size());
+        int count_number_of_matches = 0;
+        for(FragmentHash v: vals){
+            auto hash = cv::convertHashToString(v);
+            //std::cout << hash.c_str() << std::endl;
+            reply = (redisReply *) redisCommand(c,"GET %s", hash.c_str());
+            if (reply->str == NULL  || strcmp(reply->str, "(null)") == 0){
+
+            }else{
+                //printf("GET: %s\n", reply->str);            
+                count_number_of_matches++;
+            }
+        }        
+        printf("matched: %d number of times\n", count_number_of_matches);
+    } else if (argc > 1 && strcmp(argv[1], "dump") == 0){
+
+        cv::Mat img = cv::imread(imageFullPath);
+        auto tris = getTheTris(imagePoints.c_str());
+        auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
+        auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size());
+        printf("{\"vals\": [");
+        // for(FragmentHash v: vals)
+        // {
+        int end = vals.size();
+        for(int i = 0; i< end; i++)
+        {
+            auto v = vals[i];
+            printf("{ \"hash\": \"%s\", \"shape\": \"%s\"}", cv::convertHashToString(v).c_str(), cv::getShapeStr(v.getShape()).c_str());
+            if (i != end-1)
+            {
+                printf(",");
+            }
+        }
+        printf("]}");
+    }else{
+        printf("arg didn't match anything...\n");
+    }
+
 	return 0;
 }

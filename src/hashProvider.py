@@ -9,7 +9,7 @@ def getHashPlain(fragmentImage):
     import cv2
     finImage = cv2.resize(fragmentImage, (8+1, 8))
     pythonImageObj = Image.fromarray(finImage)
-    return dhash(pythonImageObj, 8 ,fragmentImage)
+    return ih.average_hash(pythonImageObj)
 
 def strHashToHashObj(strHash):
     return hex_to_hash(strHash)
@@ -26,10 +26,14 @@ def hex_to_hash(hexstr, hash_size=8):
     if len(hexstr) != count:
         emsg = 'Expected hex string size of {}.'
         raise ValueError(emsg.format(count))
+
     for i in range(count // 2):
         h = hexstr[i*2:i*2+2]
+        print "h converted: "
+        print h
         v = int("0x" + h, 16)
         l.append([v & 2**i > 0 for i in range(8)])
+
     return ImageHash(numpy.array(l))
 
 

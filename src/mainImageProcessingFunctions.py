@@ -105,7 +105,7 @@ def prepShapeForCalculationOfTranslationMatrix(fragmentImageShape):
 	pt1 = (tri[1][0] - x_trans, tri[1][1] - y_trans)
 	pt2 = (tri[2][0] - x_trans, tri[2][1] - y_trans)
 
-	if isToTheLeftOf(pt1, pt2):
+	if not isToTheLeftOf(pt1, pt2):
 		return [fragmentImageShape[0], fragmentImageShape[1], fragmentImageShape[2]] 
 	else:
 		return [fragmentImageShape[0], fragmentImageShape[2], fragmentImageShape[1]]
@@ -224,12 +224,13 @@ def c_styleTransformationMatrixHack(inputImageData, inputShape):
 		val_img, val_shape = normaliseScaleForSingleFrag_withRotation(inputImageData, inputShape, i)
 		#cv2.imshow("img2", val_img)
 		#cv2.waitKey()
-		#sd.drawLines(val_shape, val_img)
+		sd.drawLines(val_shape, val_img)
 		ret.append( FragmentImageData(val_img, val_shape) )
 	return ret
 
 
 def normaliseFragmentScaleAndRotationAndHash(fragmentObj, hashProvider):
+	import shapeDrawerWithDebug as sd
 	inputImageData = fragmentObj.croppedFragment.fragmentImage
 	inputShape = fragmentObj.croppedFragment.fragmentImageShape
 

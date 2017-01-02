@@ -342,9 +342,13 @@ name8 = "rick4"
 #addImageToDB(toFullPath('small_lenna1'))
 #showMatches(toFullPath(name4))
 #process10Triangles(toFullPath('img1'))
-addImageToDB(toFullPath("img1"))
+#addImageToDB(toFullPath("img1"))
 
-useTheCCode(toFullPath('img1'))
+img = buildImage(toFullPath("img1"))
+outputFile = './triangle_coords_output.txt'
+dumpTrianglesUsingImg(img, outputFile)
+
+#useTheCCode(toFullPath('img1'))
 
 #showMatches("lennaWithGreenDotsInTriangle2", "lennaWithGreenDotsInTriangle3")
 

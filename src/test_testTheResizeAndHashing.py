@@ -141,10 +141,11 @@ def test():
         for list1, list2 in zip(triCollection_org, triCollection_trans):
             hash1 = list1.fragmentHash
             hash2 = list2.fragmentHash
+            print "theShape: " + str(list1.fragmentImageCoords)
             print "Distance: " + str(hash1 - hash2) + " Hash img1: " + str(hash1) + " - Hash img2: " + str(hash2) 
-            cv2.imwrite('../output/'+"dist_"+ str(hash1 - hash2) +"_"+str(hash1)+"-"+str(hash2)+"_1.jpg", list1.normalisedFragment.fragmentImage)
-            cv2.imwrite('../output/'+"dist_"+ str(hash1 - hash2) +"_"+str(hash1)+"-"+str(hash2)+"_2.jpg", list2.normalisedFragment.fragmentImage)
-            #cv2.waitKey()
+            cv2.imshow('../output/'+"dist_"+ str(hash1 - hash2) +"_"+str(hash1)+"-"+str(hash2)+"_1.jpg", list1.normalisedFragment.fragmentImage)
+            cv2.imshow('../output/'+"dist_"+ str(hash1 - hash2) +"_"+str(hash1)+"-"+str(hash2)+"_2.jpg", list2.normalisedFragment.fragmentImage)
+            cv2.waitKey()
         
     print len(tris)
 
