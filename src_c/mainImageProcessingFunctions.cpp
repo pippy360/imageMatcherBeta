@@ -5,6 +5,9 @@
 #include <iomanip>      // std::setw
 #include <math.h>       /* pow, atan2 */
 
+#include <sys/stat.h>
+#include <fstream>
+
 #include "FragmentHash.h"
 #include "ShapeAndPositionInvariantImage.h"
 #include "Triangle.h"
@@ -276,7 +279,8 @@ Matx33d calcTransformationMatrixWithShapePreperation(const std::vector<Keypoint>
 	return calcTransformationMatrix(newShape, targetTriangle);
 }
 
-std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFrag(ShapeAndPositionInvariantImage& fragment)
+std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFrag(
+	ShapeAndPositionInvariantImage& fragment, string DEBUG_IMAGE_NAME="", bool DUMP_FRAGS=false)
 {
 	auto shape = fragment.getShape();
 	auto ret = std::vector<ShapeAndPositionInvariantImage>();
@@ -296,7 +300,8 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 		// printf("hash: %s shape: %s\n", convertHashToString(hash).c_str(), getShapeStr(hash.getShape()).c_str());
 		//imshow("fragmentAfterTransformation", newImageData);
 		std::string str = convertHashToString(hash);
-		imwrite("../output/"+ str + ".jpg", newImageData);
+		if(DUMP_FRAGS)
+			imwrite("../outputFragments/" + DEBUG_IMAGE_NAME + "/" + str + ".jpg", newImageData);
 		// waitKey();
 		//DEBUG
 		ret.push_back(t);
@@ -305,7 +310,8 @@ std::vector<ShapeAndPositionInvariantImage> normaliseScaleAndRotationForSingleFr
 	return ret;
 }
 
-ShapeAndPositionInvariantImage getFragment(const ShapeAndPositionInvariantImage& input_image, const Triangle& tri)
+ShapeAndPositionInvariantImage getFragment(
+	const ShapeAndPositionInvariantImage& input_image, const Triangle& tri, string DEBUG_IMAGE_NAME="", bool DUMP_FRAGS=false)
 {
 	//TODO: cut out the fragment
 	return ShapeAndPositionInvariantImage("some frag", input_image.getImageData(), tri.toKeypoints(), "");
@@ -329,10 +335,11 @@ std::vector<FragmentHash> getHashesForFragments(std::vector<ShapeAndPositionInva
 	return ret;
 }
 
-std::vector<FragmentHash> getHashesForTriangle(ShapeAndPositionInvariantImage& input_image, const Triangle& tri)
+std::vector<FragmentHash> getHashesForTriangle(
+	ShapeAndPositionInvariantImage& input_image, const Triangle& tri, string DEBUG_IMAGE_NAME="", bool DUMP_FRAGS=false)
 {
 	auto fragment = getFragment(input_image, tri);
-	auto normalisedFragments = normaliseScaleAndRotationForSingleFrag(fragment);
+	auto normalisedFragments = normaliseScaleAndRotationForSingleFrag(fragment, DEBUG_IMAGE_NAME, DUMP_FRAGS);
 	auto hashes = getHashesForFragments(normalisedFragments);
 
 	return hashes;
@@ -355,20 +362,37 @@ std::vector<FragmentHash> getAllTheHashesForImage(ShapeAndPositionInvariantImage
 	return ret;
 }
 
-std::vector<FragmentHash> getAllTheHashesForImage_debug(ShapeAndPositionInvariantImage inputImage, std::vector<Triangle> triangles, int number)
+std::vector<FragmentHash> getAllTheHashesForImage_debug(
+	ShapeAndPositionInvariantImage inputImage, std::vector<Triangle> triangles, int number, string DEBUG_IMAGE_NAME="", bool DUMP_FRAGS=false)
 {
 	auto ret = std::vector<FragmentHash>();//size==triangles.size()*NUM_OF_ROTATIONS
 	// for (auto tri : triangles)
 	// {
+	if(DUMP_FRAGS)
+		mkdir(("../outputFragments/" + DEBUG_IMAGE_NAME + "/").c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
+
+
 	for (int i = 0; i < number; i++)
 	{
 		auto tri = triangles[i];
-		auto hashes = getHashesForTriangle(inputImage, tri);
+		auto hashes = getHashesForTriangle(inputImage, tri, DEBUG_IMAGE_NAME, DUMP_FRAGS);
 		for (auto hash: hashes)
 		{
 			ret.push_back(hash);
 		}
 	}
+
+	if(DUMP_FRAGS)
+	{
+		std::ofstream outfile;
+	  	outfile.open(("../outputFragments/" + DEBUG_IMAGE_NAME + "/hashes.txt").c_str(), std::ios_base::app);
+		for (auto hash: ret)
+		{
+			outfile << convertHashToString(hash) << std::endl; 
+		}
+	}
+
+
 	return ret;
 }
 

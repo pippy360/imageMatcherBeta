@@ -11,6 +11,8 @@
 #include <iostream>
 #include "hiredis/hiredis.h"
 
+using namespace std;
+
 void toTheLeftOfTest()
 {
 
@@ -783,6 +785,15 @@ int main(int argc, char* argv[])
             }
         }
         printf("]}");
+
+    } else if (argc > 1 && strcmp(argv[1], "fragdump") == 0){
+
+        cv::Mat img = cv::imread(imageFullPath);
+        auto tris = getTheTris(imagePoints.c_str());
+        cout << "tris size: " << tris.size() << endl;
+        auto img_s = ShapeAndPositionInvariantImage("", img, std::vector<Keypoint>(), "");
+        auto vals = cv::getAllTheHashesForImage_debug(img_s, tris, tris.size(), imageName, true);
+
     }else{
         printf("arg didn't match anything...\n");
     }
